@@ -188,8 +188,8 @@ export async function fetchMessages(sessionId: string) {
 export async function checkServiceHealth() {
   try {
     const [gatewayHealth, appServerHealth] = await Promise.all([
-      fetch(`${GATEWAY_URL}/`).then(r => r.json()),
-      fetch(`${APP_SERVER_URL.replace('/api', '')}/`).then(r => r.json()),
+      fetch(`${GATEWAY_URL}/`).then(r => r.json()).catch(() => ({ status: 'error' })),
+      fetch(`${APP_SERVER_URL}/health`).then(r => r.json()).catch(() => ({ status: 'error' })),
     ]);
 
     return {
