@@ -13,7 +13,9 @@ const ChatWindow: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [apiKey, setApiKey] = useState('');
-  const [showApiKeyInput, setShowApiKeyInput] = useState(true);
+  // Check if API key is already configured in environment
+  const hasEnvApiKey = process.env.REACT_APP_API_KEY && process.env.REACT_APP_API_KEY.trim() !== '';
+  const [showApiKeyInput, setShowApiKeyInput] = useState(!hasEnvApiKey);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -27,8 +29,13 @@ const ChatWindow: React.FC = () => {
   const handleSetApiKey = () => {
     if (apiKey.trim()) {
       apiService.setApiKey(apiKey);
-      setShowApiKeyInput(false);
     }
+    setShowApiKeyInput(false);
+  };
+
+  const handleSkipApiKey = () => {
+    // Allow proceeding without API key (for localhost development)
+    setShowApiKeyInput(false);
   };
 
   const handleSendMessage = async (content: string) => {
@@ -87,24 +94,36 @@ const ChatWindow: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
         <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
-          <h2 className="text-2xl font-bold mb-4">Enter API Key</h2>
+          <h2 className="text-2xl font-bold mb-4">API Key (Optional)</h2>
           <p className="text-gray-600 mb-4">
-            Please enter your API key to start chatting.
+            Enter your API key or continue without one for localhost development.
           </p>
           <input
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            placeholder="sk_..."
+            placeholder="sk_... (optional)"
             className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
             onKeyPress={(e) => e.key === 'Enter' && handleSetApiKey()}
           />
-          <button
-            onClick={handleSetApiKey}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Continue
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSkipApiKey}
+              className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
+            >
+              Skip
+            </button>
+            <button
+              onClick={handleSetApiKey}
+              disabled={!apiKey.trim()}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed"
+            >
+              Set API Key
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-4 text-center">
+            For localhost development, the app-server can bypass API key validation.
+          </p>
         </div>
       </div>
     );
