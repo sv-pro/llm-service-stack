@@ -50,13 +50,19 @@ export default function PromptStudioPage() {
   // State
   const [models, setModels] = useState<Model[]>([]);
   const [selectedModel, setSelectedModel] = useState('gpt-3.5-turbo');
-  const [systemPrompt, setSystemPrompt] = useState('You are a helpful assistant.');
-  const [userMessage, setUserMessage] = useState('');
+  const [systemPrompt, setSystemPrompt] = useState('You are a helpful assistant, expert in modern web development.');
+  const [userMessage, setUserMessage] = useState('Generate a prompt for building a modern React application');
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState(1000);
   const [response, setResponse] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Cache controls
+  const [cacheEnabled, setCacheEnabled] = useState(true);
+  const [cacheMode, setCacheMode] = useState<'auto' | 'verbatim-only' | 'no-cache'>('auto');
+  const [cacheTTL, setCacheTTL] = useState(3600); // 1 hour default
+  const [semanticThreshold, setSemanticThreshold] = useState(0.85);
 
   // Metadata
   const [metadata, setMetadata] = useState<{
@@ -64,8 +70,12 @@ export default function PromptStudioPage() {
     latency?: number;
     cost?: number;
     cacheType?: string;
+    cacheStatus?: string;
+    cacheSimilarity?: number;
     promptTokens?: number;
     completionTokens?: number;
+    provider?: string;
+    model?: string;
   }>({});
 
   // Gateway health
@@ -130,11 +140,30 @@ export default function PromptStudioPage() {
         max_tokens: maxTokens,
       };
 
+      // Build headers with cache controls
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (!cacheEnabled || cacheMode === 'no-cache') {
+        headers['X-Cache-Control'] = 'no-cache';
+      } else if (cacheMode === 'verbatim-only') {
+        headers['X-Cache-Control'] = 'verbatim-only';
+      } else {
+        headers['X-Cache-Control'] = 'auto';
+      }
+
+      if (cacheEnabled && cacheMode === 'auto') {
+        headers['X-Cache-Similarity-Threshold'] = semanticThreshold.toString();
+      }
+
+      if (cacheTTL > 0) {
+        headers['X-Cache-TTL'] = cacheTTL.toString();
+      }
+
       const res = await fetch(`${GATEWAY_URL}/v1/chat/completions`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(requestBody),
       });
 
@@ -150,9 +179,14 @@ export default function PromptStudioPage() {
       const assistantMessage = data.choices[0]?.message?.content || 'No response';
       setResponse(assistantMessage);
 
-      // Extract metadata
+      // Extract metadata from headers
+      const cacheStatus = res.headers.get('X-Gateway-Cache-Status') || undefined;
       const cacheType = res.headers.get('X-Gateway-Cache-Type') || undefined;
+      const cacheSimilarity = res.headers.get('X-Gateway-Cache-Similarity');
       const cost = data.usage ? calculateCost(selectedModel, data.usage) : 0;
+
+      // Extract model info
+      const modelInfo = models.find(m => m.id === selectedModel);
 
       setMetadata({
         tokens: data.usage?.total_tokens,
@@ -160,7 +194,11 @@ export default function PromptStudioPage() {
         completionTokens: data.usage?.completion_tokens,
         latency,
         cost,
+        cacheStatus,
         cacheType,
+        cacheSimilarity: cacheSimilarity ? parseFloat(cacheSimilarity) : undefined,
+        provider: modelInfo?.vendor,
+        model: data.model || selectedModel,
       });
 
     } catch (err: any) {
@@ -217,19 +255,34 @@ export default function PromptStudioPage() {
   };
 
   const getSourceBadge = () => {
-    if (!metadata.cacheType) return null;
+    if (!metadata.cacheType && !metadata.cacheStatus) return null;
 
-    const badges: Record<string, { label: string; color: string }> = {
-      'semantic': { label: 'Semantic Cache', color: 'bg-purple-100 text-purple-800' },
-      'verbatim': { label: 'Verbatim Cache', color: 'bg-green-100 text-green-800' },
-      'api': { label: 'API Call', color: 'bg-red-100 text-red-800' },
+    const badges: Record<string, { label: string; icon: string; color: string }> = {
+      'semantic': { label: 'Semantic Cache', icon: '🧠', color: 'bg-purple-100 text-purple-800 border-purple-300' },
+      'verbatim': { label: 'Simple Cache', icon: '⚡', color: 'bg-green-100 text-green-800 border-green-300' },
+      'api': { label: 'API Call', icon: '🌐', color: 'bg-blue-100 text-blue-800 border-blue-300' },
     };
 
-    const badge = badges[metadata.cacheType] || { label: metadata.cacheType, color: 'bg-gray-100 text-gray-800' };
+    const cacheType = metadata.cacheType || 'api';
+    const badge = badges[cacheType] || { label: cacheType, icon: '❓', color: 'bg-gray-100 text-gray-800 border-gray-300' };
+
+    let detailText = badge.label;
+
+    // Add similarity score for semantic cache
+    if (cacheType === 'semantic' && metadata.cacheSimilarity !== undefined) {
+      const similarity = (metadata.cacheSimilarity * 100).toFixed(1);
+      detailText = `${badge.label} (${similarity}% match)`;
+    }
+
+    // Add provider and model for API calls
+    if (cacheType === 'api' && metadata.provider) {
+      detailText = `${badge.label} (${metadata.provider})`;
+    }
 
     return (
-      <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${badge.color}`}>
-        {badge.label}
+      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border-2 ${badge.color}`}>
+        <span>{badge.icon}</span>
+        <span>{detailText}</span>
       </span>
     );
   };
@@ -344,6 +397,85 @@ export default function PromptStudioPage() {
                       onChange={(e) => setMaxTokens(parseInt(e.target.value))}
                     />
                   </div>
+                </div>
+
+                {/* Cache Controls */}
+                <div className="border-t-2 border-gray-200 pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-sm font-bold text-gray-900">Cache Configuration</label>
+                    <button
+                      onClick={() => setCacheEnabled(!cacheEnabled)}
+                      className={`px-3 py-1 rounded-md text-xs font-bold transition-colors ${
+                        cacheEnabled
+                          ? 'bg-green-100 text-green-800 border-2 border-green-300'
+                          : 'bg-gray-100 text-gray-600 border-2 border-gray-300'
+                      }`}
+                    >
+                      {cacheEnabled ? '✓ Enabled' : '✗ Disabled'}
+                    </button>
+                  </div>
+
+                  {cacheEnabled && (
+                    <div className="space-y-3">
+                      {/* Cache Mode */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Cache Mode</label>
+                        <select
+                          className="w-full px-2.5 py-2 border-2 border-gray-300 rounded-lg text-sm font-medium text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
+                          value={cacheMode}
+                          onChange={(e) => setCacheMode(e.target.value as any)}
+                        >
+                          <option value="auto">🧠 Auto (Simple + Semantic)</option>
+                          <option value="verbatim-only">⚡ Simple/Verbatim Only</option>
+                          <option value="no-cache">🌐 No Cache (Always API)</option>
+                        </select>
+                      </div>
+
+                      {/* Cache TTL */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                          Cache TTL (seconds): {cacheTTL}
+                        </label>
+                        <input
+                          type="range"
+                          className="w-full"
+                          value={cacheTTL}
+                          onChange={(e) => setCacheTTL(parseInt(e.target.value))}
+                          min="60"
+                          max="86400"
+                          step="60"
+                        />
+                        <div className="flex justify-between text-xs text-gray-600 mt-1">
+                          <span>1 min</span>
+                          <span>{(cacheTTL / 3600).toFixed(1)}h</span>
+                          <span>24h</span>
+                        </div>
+                      </div>
+
+                      {/* Semantic Threshold (only for auto mode) */}
+                      {cacheMode === 'auto' && (
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                            Semantic Similarity: {(semanticThreshold * 100).toFixed(0)}%
+                          </label>
+                          <input
+                            type="range"
+                            className="w-full"
+                            value={semanticThreshold}
+                            onChange={(e) => setSemanticThreshold(parseFloat(e.target.value))}
+                            min="0.5"
+                            max="1.0"
+                            step="0.05"
+                          />
+                          <div className="flex justify-between text-xs text-gray-600 mt-1">
+                            <span>50%</span>
+                            <span>75%</span>
+                            <span>100%</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Submit Button */}
