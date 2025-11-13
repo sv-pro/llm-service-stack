@@ -14,19 +14,17 @@ services:
       timeout: 3s
       retries: 3
 
-  # PostgreSQL database (optional, for app-server)
-  postgres:
-    image: postgres:16-alpine
+  # MongoDB database (for app-server)
+  mongo:
+    image: mongo:7
     environment:
-      POSTGRES_DB: llm_service
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      MONGO_INITDB_DATABASE: llm_service
     ports:
-      - "5432:5432"
+      - "27017:27017"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mongo_data:/data/db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 3s
       retries: 3
@@ -60,14 +58,14 @@ services:
       - "3000:3000"
     environment:
       - GATEWAY_URL=http://gateway:8000
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/llm_service
+      - MONGODB_URI=mongodb://mongo:27017/llm_service
     volumes:
       - ./app-server:/app
       - /app/node_modules
       - /app/.next
     depends_on:
       - gateway
-      - postgres
+      - mongo
     command: npm run dev
 
   # Playground (Next.js)
@@ -101,5 +99,5 @@ services:
 
 volumes:
   redis_data:
-  postgres_data:
+  mongo_data:
   gateway_data:

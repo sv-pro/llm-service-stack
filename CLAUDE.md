@@ -18,7 +18,7 @@ The system follows a layered architecture where the web chat and playground comm
 ```
 web-chat + playground → app-server → gateway → LLM providers (OpenAI, Anthropic, etc.)
                             ↓            ↓
-                        PostgreSQL    Redis + DuckDB
+                         MongoDB     Redis + DuckDB
 ```
 
 ## Technology Stack
@@ -32,6 +32,7 @@ web-chat + playground → app-server → gateway → LLM providers (OpenAI, Anth
 ### App Server (`app-server/`)
 - **Language**: TypeScript
 - **Framework**: Next.js 14 (App Router)
+- **Database**: MongoDB with Mongoose ODM
 - **Purpose**: User management, chat sessions, API key management, gateway proxy
 
 ### Playground (`playground/`)
@@ -121,11 +122,12 @@ npm run lint
 ```
 
 **Key directories**:
-- `app/api/users/` - User management endpoints
-- `app/api/sessions/` - Chat session endpoints
-- `app/api/keys/` - API key management endpoints
+- `app/api/users/` - User management endpoints (fully implemented)
+- `app/api/sessions/` - Chat session endpoints (fully implemented)
+- `app/api/keys/` - API key management endpoints (fully implemented)
 - `app/api/gateway/` - Gateway proxy endpoint
-- `lib/db.ts` - Database utilities (scaffolded)
+- `lib/db.ts` - MongoDB connection utility
+- `lib/models/` - Mongoose models (User, Session, Message, ApiKey)
 
 ### Playground (Next.js)
 
@@ -214,7 +216,7 @@ LITELLM_VERBOSE=false
 ### App Server `.env.local`
 ```env
 GATEWAY_URL=http://localhost:8000
-DATABASE_URL=postgresql://user:password@localhost:5432/llm_service
+MONGODB_URI=mongodb://localhost:27017/llm_service
 ```
 
 ### Playground `.env.local`
@@ -253,12 +255,22 @@ LiteLLM handles routing to different providers (OpenAI, Anthropic, etc.) based o
 - **Gateway**: Add route to `gateway/app/main.py`
 - **App Server**: Create new route in `app-server/app/api/[endpoint]/route.ts`
 
-### Implementing Database Schema
-The app-server has placeholder database functions in `lib/db.ts`. To implement:
-1. Choose database solution (PostgreSQL recommended)
-2. Add migration tool (Prisma, Drizzle, or raw SQL)
-3. Implement schema for users, sessions, and API keys
-4. Update API routes to use real database queries
+### Database Schema (MongoDB)
+The app-server uses MongoDB with Mongoose ODM. Schema is fully implemented in `lib/models/`:
+
+**Models**:
+- `User` - User accounts with email and name
+- `Session` - Chat sessions linked to users
+- `Message` - Individual messages within sessions
+- `ApiKey` - Hashed API keys for authentication
+
+**Key Features**:
+- Automatic timestamps (createdAt, updatedAt)
+- Indexes for performance optimization
+- Cascading deletes for related data
+- bcrypt hashing for API keys
+
+All CRUD operations are implemented in the API routes with proper validation and error handling.
 
 ### Adding Authentication
 Current implementation is scaffolded without authentication. To add:
@@ -275,7 +287,7 @@ Default ports:
 - Playground: 3001 (or set via `PORT` env var)
 - Web Chat: 3002 (or 3000 for standalone)
 - Redis: 6379
-- PostgreSQL: 5432
+- MongoDB: 27017
 
 To change Next.js ports: `PORT=4000 npm run dev`
 
@@ -296,3 +308,9 @@ To change Next.js ports: `PORT=4000 npm run dev`
 - Check logs: `docker-compose logs [service-name]`
 - Rebuild: `docker-compose build --no-cache`
 - Verify environment variables in `.env`
+
+### MongoDB connection issues
+- Ensure MongoDB is running: `docker-compose ps mongo` or `mongosh` locally
+- Verify `MONGODB_URI` in `.env.local`
+- Check MongoDB logs: `docker-compose logs mongo`
+- Test connection: `mongosh mongodb://localhost:27017/llm_service`
