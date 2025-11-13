@@ -188,6 +188,14 @@ export default function PromptStudioPage() {
       // Extract model info
       const modelInfo = models.find(m => m.id === selectedModel);
 
+      // Debug logging
+      console.log('Cache Headers:', {
+        cacheStatus,
+        cacheType,
+        cacheSimilarity,
+        allHeaders: Array.from(res.headers.entries())
+      });
+
       setMetadata({
         tokens: data.usage?.total_tokens,
         promptTokens: data.usage?.prompt_tokens,
