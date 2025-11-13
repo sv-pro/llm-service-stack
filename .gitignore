@@ -136,6 +136,7 @@ celerybeat.pid
 
 # Environments
 .env
+.env.local
 .envrc
 .venv
 env/
@@ -143,6 +144,27 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# React
+build/
+.DS_Store
+
+# Database files
+*.db
+*.db-journal
+*.duckdb
 
 # Spyder project settings
 .spyderproject

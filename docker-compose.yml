@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # PostgreSQL database (optional, for app-server)
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: llm_service
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # Gateway Service (FastAPI)
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=duckdb:///./gateway.db
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      - ./gateway:/app
+      - gateway_data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # App Server (Next.js)
+  app-server:
+    build:
+      context: ./app-server
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - GATEWAY_URL=http://gateway:8000
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/llm_service
+    volumes:
+      - ./app-server:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - gateway
+      - postgres
+    command: npm run dev
+
+  # Playground (Next.js)
+  playground:
+    build:
+      context: ./playground
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:3000/api
+    volumes:
+      - ./playground:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+
+  # Web Chat (React)
+  web-chat:
+    build:
+      context: ./web-chat
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:3000/api
+    volumes:
+      - ./web-chat:/app
+      - /app/node_modules
+    command: npm start
+
+volumes:
+  redis_data:
+  postgres_data:
+  gateway_data:
