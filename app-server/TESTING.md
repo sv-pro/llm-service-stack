@@ -196,6 +196,123 @@ curl -X DELETE "http://localhost:3000/api/keys?id=KEY_ID"
 
 ---
 
+### 4. Messages API
+
+#### Get Messages for a Session
+```bash
+curl "http://localhost:3000/api/messages?sessionId=SESSION_ID"
+```
+
+**Expected Response**:
+```json
+{
+  "messages": [
+    {
+      "id": "65f...",
+      "sessionId": "65f...",
+      "role": "user",
+      "content": "Hello, how are you?",
+      "tokens": 15,
+      "cost": 0.00002,
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "65f...",
+      "sessionId": "65f...",
+      "role": "assistant",
+      "content": "I'm doing well, thank you! How can I help you today?",
+      "tokens": 25,
+      "cost": 0.00003,
+      "createdAt": "2024-01-01T00:00:01.000Z"
+    }
+  ],
+  "count": 2
+}
+```
+
+#### Create a Message
+```bash
+curl -X POST http://localhost:3000/api/messages \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "SESSION_ID",
+    "role": "user",
+    "content": "What is the weather like today?",
+    "tokens": 12
+  }'
+```
+
+#### Get Specific Message
+```bash
+curl "http://localhost:3000/api/messages?id=MESSAGE_ID"
+```
+
+#### Delete Message
+```bash
+curl -X DELETE "http://localhost:3000/api/messages?id=MESSAGE_ID"
+```
+
+---
+
+### 5. Gateway Proxy (with API Key Authentication)
+
+The gateway proxy forwards requests to the LLM gateway with automatic API key validation, usage logging, and cost tracking.
+
+#### Send Chat Completion Request
+```bash
+# First, get your API key from the Keys API
+curl -X POST http://localhost:3000/api/gateway \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -d '{
+    "model": "gpt-3.5-turbo",
+    "messages": [
+      {"role": "user", "content": "Hello, world!"}
+    ],
+    "sessionId": "SESSION_ID",
+    "temperature": 0.7
+  }'
+```
+
+**Expected Response**:
+```json
+{
+  "id": "chatcmpl-abc123",
+  "object": "chat.completion",
+  "created": 1677652288,
+  "model": "gpt-3.5-turbo",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Hello! How can I help you today?"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 10,
+    "completion_tokens": 15,
+    "total_tokens": 25
+  }
+}
+```
+
+**Features**:
+- Automatic API key validation
+- Usage logging to database (messages stored if sessionId provided)
+- Cost calculation and tracking
+- Last used timestamp update
+- Invalid/revoked key detection
+
+#### Check Gateway Health
+```bash
+curl http://localhost:3000/api/gateway
+```
+
+---
+
 ## Complete Test Flow
 
 Here's a complete workflow to test all endpoints:

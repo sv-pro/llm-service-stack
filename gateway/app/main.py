@@ -99,17 +99,23 @@ class ChatCompletionRequest(BaseModel):
 
 
 @app.post("/v1/chat/completions")
-async def chat_completions(request: ChatCompletionRequest):
+async def chat_completions(request: ChatCompletionRequest, db = Depends(get_db)):
     """
     OpenAI-compatible chat completion endpoint.
     Routes requests through LiteLLM with caching and cost tracking.
     """
+    start_time = datetime.utcnow()
+
     # Check cache
     cache_key = cache_manager.generate_key(request.model_dump())
     cached_response = await cache_manager.get(cache_key)
+    cache_hit = cached_response is not None
+
     if cached_response:
+        # Log cache hit
+        _save_usage_log(db, request, cached_response, 0, cache_hit=True)
         return cached_response
-    
+
     try:
         # Route through LiteLLM
         messages = [msg.model_dump() for msg in request.messages]
@@ -120,25 +126,65 @@ async def chat_completions(request: ChatCompletionRequest):
             max_tokens=request.max_tokens,
             stream=request.stream
         )
-        
+
+        # Calculate latency
+        latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+
         # Track costs
         cost = cost_tracker.calculate_cost(request.model, response)
-        
-        # Log usage (would save to database)
-        usage_log = {
-            "model": request.model,
-            "tokens": response.get("usage", {}).get("total_tokens", 0),
-            "cost": cost,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
+
+        # Save usage log to database
+        _save_usage_log(db, request, response, latency_ms, cache_hit=False, cost=cost)
+
         # Cache response
         await cache_manager.set(cache_key, response)
-        
+
         return response
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def _save_usage_log(db, request: ChatCompletionRequest, response: dict, latency_ms: float, cache_hit: bool = False, cost: float = None):
+    """Save usage log to database."""
+    try:
+        usage = response.get("usage", {})
+
+        # Extract provider from model name
+        provider = "unknown"
+        if request.model.startswith("gpt"):
+            provider = "openai"
+        elif request.model.startswith("claude"):
+            provider = "anthropic"
+        elif request.model.startswith("ollama/"):
+            provider = "ollama"
+
+        # Calculate cost if not provided
+        if cost is None:
+            cost = cost_tracker.calculate_cost(request.model, response)
+
+        usage_log = UsageLog(
+            timestamp=datetime.utcnow(),
+            model=request.model,
+            provider=provider,
+            prompt_tokens=usage.get("prompt_tokens", 0),
+            completion_tokens=usage.get("completion_tokens", 0),
+            total_tokens=usage.get("total_tokens", 0),
+            cost=cost,
+            latency_ms=latency_ms,
+            cache_hit=1 if cache_hit else 0,
+            request_data=request.model_dump(),
+            response_data={"choices": response.get("choices", [])} if not cache_hit else None
+        )
+
+        db.add(usage_log)
+        db.commit()
+        db.refresh(usage_log)
+
+    except Exception as e:
+        print(f"Error saving usage log: {e}")
+        db.rollback()
+        # Don't fail the request if logging fails
 
 
 @app.get("/v1/usage/stats")
