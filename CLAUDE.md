@@ -425,24 +425,41 @@ To change Next.js ports: `PORT=4000 npm run dev`
 
 ## Troubleshooting
 
-### Gateway won't start
-- Verify Python 3.9+ is installed
-- Check API keys are set in `.env`
-- Ensure Redis is running if using cache
-- Run `pip install -r requirements.txt`
+For comprehensive troubleshooting guidance, see **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)**.
 
-### Next.js services won't start
-- Delete `node_modules` and reinstall: `rm -rf node_modules && npm install`
-- Check port conflicts: `lsof -ti:3000 | xargs kill -9`
-- Clear Next.js cache: `rm -rf .next`
+This guide covers:
+- **Gateway issues**: numpy dependencies, API key configuration, JSON serialization errors
+- **Playground/Frontend issues**: cached builds, CORS headers, source badges
+- **Caching issues**: semantic cache, Redis connections, TTL configuration
+- **Docker & Environment**: environment variables, container startup, port conflicts
+- **CORS issues**: cross-origin requests, header exposure
+- **General debugging**: verbose logging, database inspection, clean slate procedures
 
-### Docker services fail
-- Check logs: `docker-compose logs [service-name]`
-- Rebuild: `docker-compose build --no-cache`
-- Verify environment variables in `.env`
+### Quick fixes for common issues:
 
-### MongoDB connection issues
-- Ensure MongoDB is running: `docker-compose ps mongo` or `mongosh` locally
-- Verify `MONGODB_URI` in `.env.local`
-- Check MongoDB logs: `docker-compose logs mongo`
-- Test connection: `mongosh mongodb://localhost:27017/llm_service`
+**Gateway won't start:**
+```bash
+docker compose logs gateway
+docker compose build --no-cache gateway
+```
+
+**Playground shows old UI:**
+```bash
+docker compose restart playground
+# Hard refresh browser: Ctrl+Shift+R
+```
+
+**Cache not working:**
+```bash
+docker compose exec redis redis-cli FLUSHALL
+docker compose restart gateway
+```
+
+**Environment variables missing:**
+```bash
+# Verify .env exists in project root
+ls -la .env
+
+# Restart services
+docker compose down && docker compose up -d
+```
