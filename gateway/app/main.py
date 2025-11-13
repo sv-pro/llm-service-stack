@@ -612,10 +612,10 @@ Return a JSON object with this exact structure:
 
 Make sure the JSON is valid and parseable."""
 
-        # Call GPT-4 for enhancement
+        # Call GPT-4 Turbo for enhancement (supports JSON response format)
         # Note: LiteLLM may log non-blocking threading errors - these are harmless
         response = await litellm.acompletion(
-            model="gpt-4",
+            model="gpt-4-turbo",
             messages=[{"role": "user", "content": metaprompt}],
             temperature=0.3,  # Lower temp for consistent results
             response_format={"type": "json_object"}
@@ -656,7 +656,7 @@ Make sure the JSON is valid and parseable."""
             detected_intent=result["detected_intent"],
             reasoning=result["reasoning"],
             confidence=result.get("confidence", 0.0),
-            model_used="gpt-4"
+            model_used="gpt-4-turbo"
         )
 
         db.add(enhanced_prompt)
