@@ -613,6 +613,7 @@ Return a JSON object with this exact structure:
 Make sure the JSON is valid and parseable."""
 
         # Call GPT-4 for enhancement
+        # Note: LiteLLM may log non-blocking threading errors - these are harmless
         response = await litellm.acompletion(
             model="gpt-4",
             messages=[{"role": "user", "content": metaprompt}],
@@ -620,7 +621,7 @@ Make sure the JSON is valid and parseable."""
             response_format={"type": "json_object"}
         )
 
-        # Parse JSON response
+        # Extract content immediately to avoid threading issues with LiteLLM logging
         if hasattr(response, 'model_dump'):
             response_dict = response.model_dump()
         elif hasattr(response, 'dict'):
@@ -629,7 +630,18 @@ Make sure the JSON is valid and parseable."""
             response_dict = dict(response)
 
         result_text = response_dict["choices"][0]["message"]["content"]
-        result = json.loads(result_text)
+
+        # Parse JSON with fallback for edge cases
+        try:
+            result = json.loads(result_text)
+        except json.JSONDecodeError:
+            # If direct parsing fails, try to extract JSON from text
+            import re
+            json_match = re.search(r'\{.*\}', result_text, re.DOTALL)
+            if json_match:
+                result = json.loads(json_match.group())
+            else:
+                raise ValueError(f"Could not parse JSON from response: {result_text[:200]}")
 
         # Store for template building (Stage 3)
         enhanced_prompt_id = str(uuid.uuid4())
