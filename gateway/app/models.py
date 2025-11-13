@@ -32,9 +32,9 @@ class UsageLog(Base):
 
 class CostTracking(Base):
     """Model for aggregated cost tracking."""
-    
+
     __tablename__ = "cost_tracking"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     date = Column(DateTime, index=True)
     model = Column(String, index=True)
@@ -42,3 +42,36 @@ class CostTracking(Base):
     total_tokens = Column(Integer)
     total_cost = Column(Float)
     user_id = Column(String, index=True, nullable=True)
+
+
+class EnhancedPrompt(Base):
+    """Model for storing enhanced prompts (Stage 2: Smart Prompts)."""
+
+    __tablename__ = "enhanced_prompts"
+
+    id = Column(String, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+
+    # Original prompt
+    original_system = Column(String)
+    original_user = Column(String)
+
+    # Enhanced prompt
+    enhanced_system = Column(String)
+    enhanced_user = Column(String)
+
+    # Metadata
+    improvements = Column(JSON)  # List of improvements made
+    detected_intent = Column(String, index=True)
+    reasoning = Column(String)
+    confidence = Column(Float)
+
+    # Which model was used for enhancement
+    model_used = Column(String)
+
+    # User feedback (tracks what users do with enhanced prompts)
+    user_feedback = Column(String, nullable=True)  # 'used' | 'edited' | 'discarded'
+    feedback_timestamp = Column(DateTime, nullable=True)
+
+    def __repr__(self):
+        return f"<EnhancedPrompt(id={self.id}, intent={self.detected_intent}, confidence={self.confidence})>"

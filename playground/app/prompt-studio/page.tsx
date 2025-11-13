@@ -84,6 +84,17 @@ export default function PromptStudioPage() {
   // CLI panel
   const [showCopyFeedback, setShowCopyFeedback] = useState(false);
 
+  // Stage 2: Smart Prompts
+  const [enhancedPrompt, setEnhancedPrompt] = useState<{
+    system: string;
+    user: string;
+    improvements: string[];
+    intent: string;
+    reasoning: string;
+    confidence: number;
+  } | null>(null);
+  const [enhancing, setEnhancing] = useState(false);
+
   // Load models on mount
   useEffect(() => {
     loadModels();
@@ -112,6 +123,54 @@ export default function PromptStudioPage() {
       }
     } catch (error) {
       console.error('Failed to load models:', error);
+    }
+  };
+
+  const handleEnhancePrompt = async () => {
+    if (!userMessage.trim()) {
+      setError('Please enter a user message to enhance');
+      return;
+    }
+
+    setEnhancing(true);
+    setError(null);
+    setEnhancedPrompt(null);
+
+    try {
+      const res = await fetch(`${GATEWAY_URL}/v1/prompts/enhance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system: systemPrompt,
+          user: userMessage,
+          context: {
+            model: selectedModel,
+            temperature
+          }
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(errorData.detail || `Enhancement failed: ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      setEnhancedPrompt({
+        system: data.enhanced.system,
+        user: data.enhanced.user,
+        improvements: data.improvements,
+        intent: data.detected_intent,
+        reasoning: data.reasoning,
+        confidence: data.confidence
+      });
+
+    } catch (err: any) {
+      console.error('Error enhancing prompt:', err);
+      setError(err.message || 'Failed to enhance prompt');
+    } finally {
+      setEnhancing(false);
     }
   };
 
@@ -381,6 +440,97 @@ export default function PromptStudioPage() {
                   />
                   <p className="text-xs text-gray-700 mt-2 font-semibold">⌘/Ctrl+Enter to submit</p>
                 </div>
+
+                {/* Smart Prompts: Enhance Button */}
+                <button
+                  onClick={handleEnhancePrompt}
+                  disabled={enhancing || !userMessage.trim()}
+                  className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold px-4 py-3 rounded-lg hover:from-purple-700 hover:to-purple-800 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg"
+                >
+                  {enhancing ? '✨ Enhancing...' : '✨ Enhance Prompt'}
+                </button>
+
+                {/* Enhanced Prompt Display */}
+                {enhancedPrompt && (
+                  <div className="mt-4 bg-purple-50 border-2 border-purple-200 rounded-lg p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-bold text-purple-900">📝 Enhanced Prompt</h3>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs bg-purple-100 px-2 py-1 rounded border border-purple-300 font-semibold">
+                          Intent: {enhancedPrompt.intent}
+                        </span>
+                        <span className="text-xs bg-purple-100 px-2 py-1 rounded border border-purple-300 font-semibold">
+                          {(enhancedPrompt.confidence * 100).toFixed(0)}% confident
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-bold text-purple-900 mb-1">System:</label>
+                        <div className="bg-white border border-purple-200 rounded p-3 text-sm text-gray-900 max-h-32 overflow-y-auto">
+                          {enhancedPrompt.system}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-bold text-purple-900 mb-1">User:</label>
+                        <div className="bg-white border border-purple-200 rounded p-3 text-sm text-gray-900 max-h-32 overflow-y-auto">
+                          {enhancedPrompt.user}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-bold text-purple-900 mb-1">Improvements:</label>
+                        <ul className="bg-white border border-purple-200 rounded p-3 text-sm text-gray-900 space-y-1">
+                          {enhancedPrompt.improvements.map((improvement, i) => (
+                            <li key={i} className="flex items-start">
+                              <span className="text-green-600 mr-2">✓</span>
+                              {improvement}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {enhancedPrompt.reasoning && (
+                        <div>
+                          <label className="block text-sm font-bold text-purple-900 mb-1">Reasoning:</label>
+                          <div className="bg-white border border-purple-200 rounded p-3 text-sm text-gray-700 italic">
+                            {enhancedPrompt.reasoning}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 mt-4">
+                      <button
+                        onClick={() => {
+                          setSystemPrompt(enhancedPrompt.system);
+                          setUserMessage(enhancedPrompt.user);
+                          setEnhancedPrompt(null);
+                        }}
+                        className="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 font-semibold transition-colors"
+                      >
+                        Use This
+                      </button>
+                      <button
+                        onClick={() => {
+                          // TODO: Stage 3 - Save as template
+                          alert('Template saving coming in Stage 3!');
+                        }}
+                        className="flex-1 bg-white text-purple-600 border-2 border-purple-600 px-4 py-2 rounded-lg hover:bg-purple-50 font-semibold transition-colors"
+                      >
+                        Save as Template
+                      </button>
+                      <button
+                        onClick={() => setEnhancedPrompt(null)}
+                        className="px-4 py-2 text-gray-600 hover:text-gray-900 font-semibold transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Submit Button */}
                 <button

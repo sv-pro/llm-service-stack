@@ -10,10 +10,12 @@ from datetime import datetime
 
 from .config import settings
 from .database import init_db, get_db
-from .models import UsageLog
+from .models import UsageLog, EnhancedPrompt
 from .cache import CacheManager
 from .cost_tracker import CostTracker
 from .ollama_checker import check_ollama_on_startup, ollama_checker
+import uuid
+import json
 
 app = FastAPI(
     title="LLM Gateway Service",
@@ -555,6 +557,122 @@ async def get_usage_logs(
     except Exception as e:
         print(f"Error fetching usage logs: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch usage logs")
+
+
+# Stage 2: Smart Prompts - Pydantic models
+class EnhancePromptRequest(BaseModel):
+    """Request to enhance a naive prompt."""
+    system: str
+    user: str
+    context: Optional[dict] = {}
+
+
+class EnhancePromptResponse(BaseModel):
+    """Response with enhanced prompt and metadata."""
+    enhanced: dict
+    improvements: List[str]
+    detected_intent: str
+    reasoning: str
+    confidence: float
+    original: dict
+
+
+@app.post("/v1/prompts/enhance")
+async def enhance_prompt(request: EnhancePromptRequest, db = Depends(get_db)):
+    """
+    Stage 2: Smart Prompts
+
+    Use GPT-4 or Claude to improve a naive prompt.
+    Returns enhanced version with metadata and improvements.
+    """
+    try:
+        # Metaprompt for enhancement
+        metaprompt = f"""You are a prompt engineering expert. Analyze and improve this prompt for clarity, specificity, and effectiveness.
+
+Original Prompt:
+System: {request.system}
+User: {request.user}
+
+Your task:
+1. Rewrite both system and user prompts to be clearer and more specific
+2. Add relevant context, constraints, and formatting instructions
+3. Identify improvements made
+4. Detect the user's intent category (e.g., code_generation, content_writing, data_analysis, reasoning, etc.)
+5. Provide reasoning for your improvements
+
+Return a JSON object with this exact structure:
+{{
+  "enhanced_system": "improved system prompt here",
+  "enhanced_user": "improved user prompt here",
+  "improvements": ["improvement 1", "improvement 2", "improvement 3"],
+  "detected_intent": "intent category (one of: code_generation, content_writing, data_analysis, reasoning, code_review, etc.)",
+  "reasoning": "brief explanation of intent and improvements",
+  "confidence": 0.85
+}}
+
+Make sure the JSON is valid and parseable."""
+
+        # Call GPT-4 for enhancement
+        response = await litellm.acompletion(
+            model="gpt-4",
+            messages=[{"role": "user", "content": metaprompt}],
+            temperature=0.3,  # Lower temp for consistent results
+            response_format={"type": "json_object"}
+        )
+
+        # Parse JSON response
+        if hasattr(response, 'model_dump'):
+            response_dict = response.model_dump()
+        elif hasattr(response, 'dict'):
+            response_dict = response.dict()
+        else:
+            response_dict = dict(response)
+
+        result_text = response_dict["choices"][0]["message"]["content"]
+        result = json.loads(result_text)
+
+        # Store for template building (Stage 3)
+        enhanced_prompt_id = str(uuid.uuid4())
+        enhanced_prompt = EnhancedPrompt(
+            id=enhanced_prompt_id,
+            timestamp=datetime.utcnow(),
+            original_system=request.system,
+            original_user=request.user,
+            enhanced_system=result["enhanced_system"],
+            enhanced_user=result["enhanced_user"],
+            improvements=result["improvements"],
+            detected_intent=result["detected_intent"],
+            reasoning=result["reasoning"],
+            confidence=result.get("confidence", 0.0),
+            model_used="gpt-4"
+        )
+
+        db.add(enhanced_prompt)
+        db.commit()
+        db.refresh(enhanced_prompt)
+
+        return EnhancePromptResponse(
+            enhanced={
+                "system": result["enhanced_system"],
+                "user": result["enhanced_user"]
+            },
+            improvements=result["improvements"],
+            detected_intent=result["detected_intent"],
+            reasoning=result["reasoning"],
+            confidence=result.get("confidence", 0.0),
+            original={
+                "system": request.system,
+                "user": request.user
+            }
+        )
+
+    except json.JSONDecodeError as e:
+        print(f"Error parsing JSON response: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to parse enhancement response: {str(e)}")
+    except Exception as e:
+        print(f"Error enhancing prompt: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to enhance prompt: {str(e)}")
 
 
 if __name__ == "__main__":
