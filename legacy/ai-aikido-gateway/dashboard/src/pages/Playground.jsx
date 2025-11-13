@@ -124,7 +124,7 @@ function Playground() {
   const curlCommand = useMemo(() => {
     const sanitizedJson = requestJson.replace(/'/g, "\\'");
     return [
-      `curl ${GATEWAY_URL}/v1/chat/completions \\`,
+      `curl -i ${GATEWAY_URL}/v1/chat/completions \\`,
       '  -H "Content-Type: application/json" \\',
       '  -H "Authorization: Bearer $OPENAI_API_KEY" \\',
       `  -d '${sanitizedJson}'`,
