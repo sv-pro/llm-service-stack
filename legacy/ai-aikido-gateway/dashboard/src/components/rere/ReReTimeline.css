@@ -1,0 +1,265 @@
+.rere-timeline {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.timeline-header h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #dc2626;
+  animation: pulse 2s infinite;
+}
+
+.timeline-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.empty-message {
+  font-size: 1.125rem;
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+}
+
+.empty-hint {
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+.timeline-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.timeline-step {
+  margin-bottom: 2rem;
+}
+
+.timeline-step.step-active {
+  background: #eef2ff;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.step-number {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #111827;
+}
+
+.step-count {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.step-events {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.timeline-event {
+  background: #f9fafb;
+  border-left: 4px solid #e5e7eb;
+  border-radius: 0.375rem;
+  padding: 1rem;
+  transition: all 0.2s;
+}
+
+.timeline-event:hover {
+  background: #f3f4f6;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.timeline-event.phase-reason {
+  border-left-color: #3b82f6;
+}
+
+.timeline-event.phase-act {
+  border-left-color: #10b981;
+}
+
+.timeline-event.phase-reflect {
+  border-left-color: #f59e0b;
+}
+
+.timeline-event.phase-re-reason {
+  border-left-color: #8b5cf6;
+}
+
+.event-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.event-phase {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.phase-icon {
+  font-size: 1.25rem;
+}
+
+.phase-label {
+  font-weight: 700;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #374151;
+}
+
+.event-time {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.event-description {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+  font-style: italic;
+}
+
+.event-message {
+  font-size: 0.875rem;
+  color: #111827;
+  margin-bottom: 0.75rem;
+}
+
+.event-data {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.data-item {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.data-label {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.data-value {
+  color: #111827;
+  font-weight: 600;
+}
+
+.data-value.quality {
+  color: #10b981;
+}
+
+.data-value.yes {
+  color: #10b981;
+}
+
+.data-value.no {
+  color: #dc2626;
+}
+
+.event-metadata {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.event-metadata summary {
+  cursor: pointer;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.event-metadata pre {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: white;
+  border-radius: 0.25rem;
+  overflow-x: auto;
+  font-size: 0.75rem;
+}
+
+.timeline-footer {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 2px solid #e5e7eb;
+}
+
+.footer-stat {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.stat-label {
+  color: #6b7280;
+}
+
+.stat-value {
+  font-weight: 600;
+  color: #111827;
+}
+
+.stat-value.running {
+  color: #3b82f6;
+}
+
+.stat-value.complete {
+  color: #10b981;
+}
+
+.footer-error {
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-left: auto;
+}

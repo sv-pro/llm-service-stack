@@ -1,0 +1,66 @@
+# AI Aikido Gateway - Gateway Service Dockerfile
+
+# Base stage with common dependencies
+FROM python:3.11-slim AS base
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better Docker layer caching
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy source code
+COPY src/ ./src/
+COPY config/ ./config/
+
+# Set Python path so modules can be found correctly
+# Need both /app (for src.xxx imports) and /app/src (for core.xxx imports)
+ENV PYTHONPATH=/app:/app/src
+
+# Create data directory for SQLite databases
+RUN mkdir -p /app/data
+
+# Development stage
+FROM base AS development
+
+# Install development dependencies if needed
+COPY requirements-dev.txt .
+RUN pip install --no-cache-dir -r requirements-dev.txt
+
+# Create non-root user for security
+RUN groupadd -r aikido && useradd -r -g aikido aikido && \
+    chown -R aikido:aikido /app
+USER aikido
+
+# Expose port
+EXPOSE 8000
+
+# Run application with reload for development
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+# Production stage
+FROM base AS production
+
+# Create non-root user for security
+RUN groupadd -r aikido && useradd -r -g aikido aikido && \
+    chown -R aikido:aikido /app
+USER aikido
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Run application
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

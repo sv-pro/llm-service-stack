@@ -1,0 +1,10 @@
+tenants:
+  - tenant_id: sample
+    display_name: Sample Tenant
+    allow_provider_keys: false
+    rate_limit_per_minute: 60
+    api_keys:
+      - key_id: sample-key
+        secret: replace-me
+        label: Default key
+        status: active

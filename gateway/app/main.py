@@ -34,6 +34,16 @@ cache_manager = CacheManager()
 cost_tracker = CostTracker()
 
 
+def check_vendor_availability() -> Dict[str, bool]:
+    """Check which vendors have valid API keys configured."""
+    vendors = {
+        'openai': bool(settings.OPENAI_API_KEY and settings.OPENAI_API_KEY.strip()),
+        'anthropic': bool(settings.ANTHROPIC_API_KEY and settings.ANTHROPIC_API_KEY.strip()),
+        'ollama': ollama_checker.available
+    }
+    return vendors
+
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize database and components on startup."""
@@ -61,24 +71,128 @@ async def root():
 
 @app.get("/v1/models")
 async def list_models():
-    """List available models (OpenAI-compatible endpoint)."""
+    """
+    List available models with metadata (vendor, type, endpoint, availability).
+
+    Model types:
+    - simple: Standard chat models (use /v1/chat/completions)
+    - reasoning: Advanced reasoning models (use /v1/chat/completions with extended thinking)
+
+    Availability:
+    - Models are marked unavailable if vendor API key is missing
+    - Ollama models are only available if downloaded locally
+    """
+    # Check which vendors have valid API keys
+    vendor_availability = check_vendor_availability()
+
     models = [
-        {"id": "gpt-4", "object": "model", "owned_by": "openai"},
-        {"id": "gpt-4-turbo", "object": "model", "owned_by": "openai"},
-        {"id": "gpt-3.5-turbo", "object": "model", "owned_by": "openai"},
-        {"id": "claude-3-opus-20240229", "object": "model", "owned_by": "anthropic"},
-        {"id": "claude-3-sonnet-20240229", "object": "model", "owned_by": "anthropic"},
-        {"id": "claude-2", "object": "model", "owned_by": "anthropic"},
+        # OpenAI Models
+        {
+            "id": "gpt-4",
+            "object": "model",
+            "owned_by": "openai",
+            "vendor": "openai",
+            "type": "simple",
+            "endpoint": "chat",
+            "available": vendor_availability['openai'],
+            "unavailable_reason": None if vendor_availability['openai'] else "API key not configured"
+        },
+        {
+            "id": "gpt-4-turbo",
+            "object": "model",
+            "owned_by": "openai",
+            "vendor": "openai",
+            "type": "simple",
+            "endpoint": "chat",
+            "available": vendor_availability['openai'],
+            "unavailable_reason": None if vendor_availability['openai'] else "API key not configured"
+        },
+        {
+            "id": "gpt-3.5-turbo",
+            "object": "model",
+            "owned_by": "openai",
+            "vendor": "openai",
+            "type": "simple",
+            "endpoint": "chat",
+            "available": vendor_availability['openai'],
+            "unavailable_reason": None if vendor_availability['openai'] else "API key not configured"
+        },
+        {
+            "id": "o1-preview",
+            "object": "model",
+            "owned_by": "openai",
+            "vendor": "openai",
+            "type": "reasoning",
+            "endpoint": "chat",
+            "available": vendor_availability['openai'],
+            "unavailable_reason": None if vendor_availability['openai'] else "API key not configured"
+        },
+        {
+            "id": "o1-mini",
+            "object": "model",
+            "owned_by": "openai",
+            "vendor": "openai",
+            "type": "reasoning",
+            "endpoint": "chat",
+            "available": vendor_availability['openai'],
+            "unavailable_reason": None if vendor_availability['openai'] else "API key not configured"
+        },
+        # Anthropic Models
+        {
+            "id": "claude-3-opus-20240229",
+            "object": "model",
+            "owned_by": "anthropic",
+            "vendor": "anthropic",
+            "type": "simple",
+            "endpoint": "messages",
+            "available": vendor_availability['anthropic'],
+            "unavailable_reason": None if vendor_availability['anthropic'] else "API key not configured"
+        },
+        {
+            "id": "claude-3-sonnet-20240229",
+            "object": "model",
+            "owned_by": "anthropic",
+            "vendor": "anthropic",
+            "type": "simple",
+            "endpoint": "messages",
+            "available": vendor_availability['anthropic'],
+            "unavailable_reason": None if vendor_availability['anthropic'] else "API key not configured"
+        },
+        {
+            "id": "claude-3-haiku-20240307",
+            "object": "model",
+            "owned_by": "anthropic",
+            "vendor": "anthropic",
+            "type": "simple",
+            "endpoint": "messages",
+            "available": vendor_availability['anthropic'],
+            "unavailable_reason": None if vendor_availability['anthropic'] else "API key not configured"
+        },
+        {
+            "id": "claude-2.1",
+            "object": "model",
+            "owned_by": "anthropic",
+            "vendor": "anthropic",
+            "type": "simple",
+            "endpoint": "messages",
+            "available": vendor_availability['anthropic'],
+            "unavailable_reason": None if vendor_availability['anthropic'] else "API key not configured"
+        },
     ]
 
-    # Add Ollama models if available
+    # Add Ollama models (only downloaded ones are available)
     if ollama_checker.available and ollama_checker.installed_models:
         for model_name in ollama_checker.installed_models:
             # Use Ollama prefix for LiteLLM routing
             models.append({
                 "id": f"ollama/{model_name}",
                 "object": "model",
-                "owned_by": "ollama"
+                "owned_by": "ollama",
+                "vendor": "ollama",
+                "type": "simple",
+                "endpoint": "chat",
+                "available": True,  # If in installed_models list, it's downloaded
+                "unavailable_reason": None
             })
 
     return {"object": "list", "data": models}

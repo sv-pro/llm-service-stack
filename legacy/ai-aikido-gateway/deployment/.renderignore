@@ -1,0 +1,67 @@
+# Render ignore file
+# Files/folders to exclude from Render builds
+
+# Development
+.env
+.env.local
+*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Tests
+tests/
+*.test.js
+*.spec.js
+
+# Documentation (optional, comment out if you want docs deployed)
+docs/
+*.md
+!README.md
+
+# Data (SQLite will be on persistent disk)
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Temporary
+tmp/
+temp/

@@ -1,0 +1,45 @@
+services:
+  # Backend: FastAPI Gateway (Python)
+  - type: web
+    name: aikido-gateway
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: GATEWAY_HOST
+        value: "0.0.0.0"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: DB_PATH
+        value: /var/data
+      - key: OPENAI_API_KEY
+        sync: false  # Set this in Render dashboard - REQUIRED
+      - key: ANTHROPIC_API_KEY
+        sync: false  # Set this in Render dashboard - Optional
+      - key: CLASSIFIER_MODEL
+        value: claude-3-haiku-20240307
+      - key: CLASSIFIER_MAX_TOKENS
+        value: "100"
+      - key: CHEAP_MODEL
+        value: claude-3-haiku-20240307
+      - key: EXPENSIVE_MODEL
+        value: gpt-4-turbo-preview
+    disk:
+      name: aikido-data
+      mountPath: /var/data
+      sizeGB: 1
+
+  # Frontend: React Dashboard (Node.js + Vite)
+  - type: web
+    name: aikido-dashboard
+    runtime: node
+    plan: free
+    buildCommand: cd dashboard && npm ci && npm run build
+    startCommand: cd dashboard && npx serve -s dist -l $PORT
+    envVars:
+      - key: NODE_VERSION
+        value: "18"
+      - key: VITE_API_URL
+        sync: false  # Set to your gateway URL, e.g., https://aikido-gateway.onrender.com

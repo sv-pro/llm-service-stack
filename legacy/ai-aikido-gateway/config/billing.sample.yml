@@ -1,0 +1,9 @@
+default:
+  daily: 250.0
+  weekly: 1200.0
+  monthly: 4500.0
+
+tenants:
+  sample:
+    daily: 300.0
+    weekly: 1400.0
