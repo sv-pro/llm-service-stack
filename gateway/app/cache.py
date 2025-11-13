@@ -113,10 +113,14 @@ class CacheManager:
         threshold = similarity_threshold or self.similarity_threshold
 
         # 1. Try verbatim cache first (exact match)
-        cache_key = self.generate_key(request_data)
-        cached = await self.get(cache_key)
-        if cached:
-            return cached, "verbatim", 1.0
+        try:
+            cache_key = self.generate_key(request_data)
+            cached = await self.get(cache_key)
+            if cached:
+                return cached, "verbatim", 1.0
+        except Exception as e:
+            print(f"Verbatim cache error (non-fatal): {e}")
+            # Continue to try semantic cache
 
         # 2. Try semantic cache if enabled
         if not self.semantic_enabled or cache_control == "verbatim-only":
@@ -125,6 +129,7 @@ class CacheManager:
         try:
             client = await self._get_client()
             if not client:
+                # Redis not available, skip semantic cache
                 return None, "api", None
 
             # Extract prompt text and generate embedding
@@ -134,6 +139,8 @@ class CacheManager:
 
             current_embedding = await self._generate_embedding(prompt_text)
             if not current_embedding:
+                # Embedding generation failed, skip semantic cache
+                print("Semantic cache: Embedding generation failed, skipping")
                 return None, "api", None
 
             # Search for similar embeddings in cache
@@ -172,7 +179,8 @@ class CacheManager:
             return None, "api", None
 
         except Exception as e:
-            print(f"Semantic cache search error: {e}")
+            print(f"Semantic cache search warning (non-fatal): {e}")
+            # Return API miss instead of failing the request
             return None, "api", None
     
     async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
@@ -217,36 +225,43 @@ class CacheManager:
 
             # 2. Store semantic cache if enabled
             if self.semantic_enabled:
-                client = await self._get_client()
-                if not client:
-                    return False
+                try:
+                    client = await self._get_client()
+                    if not client:
+                        # Redis not available, skip semantic cache but don't fail
+                        return True
 
-                # Extract prompt and generate embedding
-                prompt_text = self._extract_prompt_text(request_data)
-                if not prompt_text:
-                    return True  # Still return True since verbatim cache was set
+                    # Extract prompt and generate embedding
+                    prompt_text = self._extract_prompt_text(request_data)
+                    if not prompt_text:
+                        return True  # Still return True since verbatim cache was set
 
-                embedding = await self._generate_embedding(prompt_text)
-                if not embedding:
-                    return True  # Still return True since verbatim cache was set
+                    embedding = await self._generate_embedding(prompt_text)
+                    if not embedding:
+                        return True  # Still return True since verbatim cache was set
 
-                # Store semantic cache entry
-                semantic_key = f"llm:semantic:{cache_key}"
-                semantic_data = {
-                    'embedding': embedding,
-                    'response': response,
-                    'prompt': prompt_text,
-                    'model': request_data.get('model', 'unknown')
-                }
+                    # Store semantic cache entry
+                    semantic_key = f"llm:semantic:{cache_key}"
+                    semantic_data = {
+                        'embedding': embedding,
+                        'response': response,
+                        'prompt': prompt_text,
+                        'model': request_data.get('model', 'unknown')
+                    }
 
-                await client.setex(
-                    semantic_key,
-                    cache_ttl,
-                    json.dumps(semantic_data)
-                )
+                    await client.setex(
+                        semantic_key,
+                        cache_ttl,
+                        json.dumps(semantic_data)
+                    )
+                except Exception as semantic_error:
+                    # Log semantic cache error but don't fail the request
+                    print(f"Semantic cache storage warning (non-fatal): {semantic_error}")
+                    # Return True since verbatim cache was still set
+                    return True
 
             return True
 
         except Exception as e:
-            print(f"Cache set with semantic error: {e}")
+            print(f"Cache set error: {e}")
             return False

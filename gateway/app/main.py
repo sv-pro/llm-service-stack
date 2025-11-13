@@ -48,15 +48,22 @@ def check_vendor_availability() -> Dict[str, bool]:
 @app.on_event("startup")
 async def startup_event():
     """Initialize database and components on startup."""
+    import os
+
     init_db()
     litellm.set_verbose = settings.LITELLM_VERBOSE
+
+    # Set API keys in environment for LiteLLM
+    if settings.OPENAI_API_KEY:
+        os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
+    if settings.ANTHROPIC_API_KEY:
+        os.environ["ANTHROPIC_API_KEY"] = settings.ANTHROPIC_API_KEY
 
     # Check Ollama availability
     await check_ollama_on_startup()
 
     # Configure Ollama API base if available
     if ollama_checker.available:
-        import os
         os.environ["OLLAMA_API_BASE"] = settings.OLLAMA_API_BASE
 
 
