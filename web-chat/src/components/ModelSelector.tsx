@@ -48,7 +48,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
 
   return (
     <div className="flex items-center gap-3">
-      <label htmlFor="model-select" className="text-sm font-medium text-gray-700 whitespace-nowrap">
+      <label htmlFor="model-select" className="text-sm font-bold text-gray-900 whitespace-nowrap">
         Model:
       </label>
       <div className="flex flex-col gap-1">
@@ -58,7 +58,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
             value={selectedModel}
             onChange={(e) => onModelChange(e.target.value)}
             disabled={disabled}
-            className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed min-w-[250px]"
+            className="px-3 py-2 border-2 border-gray-300 rounded-lg bg-white text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed min-w-[250px] transition-colors"
           >
             {Object.entries(groupedModels).map(([vendor, vendorModels]) => (
               <optgroup key={vendor} label={vendorNames[vendor] || vendor}>
@@ -82,15 +82,15 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
                   {getTypeBadge('reasoning')}
                 </span>
               )}
-              <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+              <span className={`text-xs px-2 py-1 rounded-full font-bold border-2 ${
                 selectedModelInfo.available
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-red-100 text-red-700'
+                  ? 'bg-green-100 text-green-800 border-green-300'
+                  : 'bg-red-100 text-red-800 border-red-300'
               }`}>
                 {vendorNames[selectedModelInfo.vendor]}
               </span>
               {selectedModelInfo.available && (
-                <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">
+                <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 font-bold border-2 border-green-300">
                   ✓ Available
                 </span>
               )}
@@ -98,7 +98,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
           )}
         </div>
         {selectedModelInfo && !selectedModelInfo.available && (
-          <div className="text-xs text-red-600 flex items-center gap-1">
+          <div className="text-xs text-red-700 flex items-center gap-1 font-semibold bg-red-50 px-2 py-1 rounded border border-red-200">
             <span>⚠️</span>
             <span>{selectedModelInfo.unavailable_reason || 'Model unavailable'}</span>
           </div>

@@ -171,21 +171,21 @@ const ChatWindow: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="flex flex-col h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm">
+      <div className="bg-white border-b-2 border-gray-300 px-6 py-4 flex justify-between items-center shadow-md">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-md">
             AI
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-800">LLM Chat</h1>
-            <p className="text-xs text-gray-500">Powered by OpenAI & Anthropic</p>
+            <h1 className="text-xl font-bold text-gray-900">LLM Chat</h1>
+            <p className="text-xs text-gray-700 font-semibold">Powered by OpenAI & Anthropic</p>
           </div>
         </div>
         <button
           onClick={handleNewChat}
-          className="px-4 py-2 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 font-medium rounded-lg hover:from-gray-200 hover:to-gray-300 transition-all duration-200 shadow-sm hover:shadow"
+          className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-md hover:shadow-lg"
         >
           + New Chat
         </button>
@@ -225,12 +225,15 @@ const ChatWindow: React.FC = () => {
           <ChatMessage key={message.id} message={message} />
         ))}
         {isLoading && (
-          <div className="flex justify-start mb-4">
-            <div className="bg-white text-gray-900 rounded-lg px-4 py-3 shadow-sm border border-gray-200">
+          <div className="flex justify-start mb-5">
+            <div className="bg-white text-gray-900 rounded-xl px-5 py-3 shadow-md border-2 border-gray-200">
+              <div className="text-xs font-bold mb-2 text-gray-700">
+                🤖 Assistant
+              </div>
               <div className="flex space-x-2">
-                <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce"></div>
+                <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
               </div>
             </div>
           </div>

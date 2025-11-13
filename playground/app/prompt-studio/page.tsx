@@ -235,41 +235,41 @@ export default function PromptStudioPage() {
   };
 
   return (
-    <div className="min-h-screen p-8 bg-gray-50">
+    <div className="min-h-screen p-8 bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold">Prompt Studio</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Prompt Studio</h1>
 
             {/* Gateway Status */}
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${
+            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
+              <div className={`w-2.5 h-2.5 rounded-full ${
                 gatewayStatus === 'online' ? 'bg-green-500 animate-pulse' :
                 gatewayStatus === 'offline' ? 'bg-red-500' :
                 'bg-yellow-500 animate-pulse'
               }`} />
-              <span className="text-sm text-gray-600">
+              <span className="text-sm font-medium text-gray-900">
                 {gatewayStatus === 'online' ? 'Gateway Online' :
                  gatewayStatus === 'offline' ? 'Gateway Offline' :
                  'Checking...'}
               </span>
             </div>
           </div>
-          <p className="text-gray-600 mt-2">Test and refine your prompts with real-time feedback</p>
+          <p className="text-gray-700 mt-2 font-medium">Test and refine your prompts with real-time feedback</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column: Prompt Editor */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">Input</h2>
-              <div className="space-y-4">
+            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+              <h2 className="text-xl font-bold mb-5 text-gray-900">Input</h2>
+              <div className="space-y-5">
                 {/* Model Selection */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">Model</label>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">Model</label>
                   <select
-                    className="w-full px-3 py-2 border rounded-md"
+                    className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-gray-900 font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
                     value={selectedModel}
                     onChange={(e) => setSelectedModel(e.target.value)}
                   >
@@ -288,16 +288,16 @@ export default function PromptStudioPage() {
                       </optgroup>
                     )}
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {models.find(m => m.id === selectedModel)?.type === 'reasoning' ? 'Advanced reasoning model' : 'Standard chat model'}
+                  <p className="text-xs text-gray-700 mt-2 font-medium">
+                    {models.find(m => m.id === selectedModel)?.type === 'reasoning' ? '🧠 Advanced reasoning model' : '💬 Standard chat model'}
                   </p>
                 </div>
 
                 {/* System Prompt */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">System Prompt</label>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">System Prompt</label>
                   <textarea
-                    className="w-full px-3 py-2 border rounded-md h-24 text-sm font-mono"
+                    className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg h-24 text-sm font-mono text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
                     placeholder="You are a helpful assistant..."
                     value={systemPrompt}
                     onChange={(e) => setSystemPrompt(e.target.value)}
@@ -306,9 +306,9 @@ export default function PromptStudioPage() {
 
                 {/* User Message */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">User Message</label>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">User Message</label>
                   <textarea
-                    className="w-full px-3 py-2 border rounded-md h-32 text-sm font-mono"
+                    className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg h-32 text-sm font-mono text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
                     placeholder="Enter your prompt here..."
                     value={userMessage}
                     onChange={(e) => setUserMessage(e.target.value)}
@@ -318,16 +318,16 @@ export default function PromptStudioPage() {
                       }
                     }}
                   />
-                  <p className="text-xs text-gray-500 mt-1">⌘/Ctrl+Enter to submit</p>
+                  <p className="text-xs text-gray-700 mt-2 font-semibold">⌘/Ctrl+Enter to submit</p>
                 </div>
 
                 {/* Parameters */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Temperature</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Temperature</label>
                     <input
                       type="number"
-                      className="w-full px-3 py-2 border rounded-md"
+                      className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-gray-900 font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
                       value={temperature}
                       onChange={(e) => setTemperature(parseFloat(e.target.value))}
                       step="0.1"
@@ -336,10 +336,10 @@ export default function PromptStudioPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Max Tokens</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Max Tokens</label>
                     <input
                       type="number"
-                      className="w-full px-3 py-2 border rounded-md"
+                      className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-gray-900 font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
                       value={maxTokens}
                       onChange={(e) => setMaxTokens(parseInt(e.target.value))}
                     />
@@ -348,7 +348,7 @@ export default function PromptStudioPage() {
 
                 {/* Submit Button */}
                 <button
-                  className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed"
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold px-4 py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg"
                   onClick={handleGenerate}
                   disabled={loading || !userMessage.trim()}
                 >
@@ -360,72 +360,72 @@ export default function PromptStudioPage() {
 
           {/* Middle Column: Response Viewer */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold">Output</h2>
+            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-xl font-bold text-gray-900">Output</h2>
                 {getSourceBadge()}
               </div>
 
               <div className="space-y-4">
                 {/* Error Display */}
                 {error && (
-                  <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">
+                  <div className="bg-red-50 border-2 border-red-300 text-red-900 px-4 py-3 rounded-lg font-medium">
                     {error}
                   </div>
                 )}
 
                 {/* Response Text */}
                 <div>
-                  <div className="bg-gray-50 rounded-md p-4 min-h-96 max-h-96 overflow-y-auto">
+                  <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-4 min-h-96 max-h-96 overflow-y-auto">
                     {loading ? (
                       <div className="flex items-center justify-center h-full">
                         <div className="flex space-x-2">
-                          <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" />
-                          <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                          <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
+                          <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce" />
+                          <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                          <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
                         </div>
                       </div>
                     ) : response ? (
-                      <p className="text-sm whitespace-pre-wrap">{response}</p>
+                      <p className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed">{response}</p>
                     ) : (
-                      <p className="text-sm text-gray-500">Response will appear here...</p>
+                      <p className="text-sm text-gray-500 font-medium">Response will appear here...</p>
                     )}
                   </div>
                 </div>
 
                 {/* Metadata */}
                 {response && (
-                  <div className="border-t pt-4">
-                    <h3 className="text-sm font-medium mb-2">Metadata</h3>
+                  <div className="border-t-2 border-gray-200 pt-4">
+                    <h3 className="text-sm font-bold text-gray-900 mb-3">Metadata</h3>
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       {metadata.tokens !== undefined && (
-                        <div>
-                          <span className="text-gray-500">Total Tokens:</span>
-                          <span className="ml-2 font-medium">{metadata.tokens}</span>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                          <span className="text-gray-700 font-medium">Total Tokens:</span>
+                          <span className="ml-2 font-bold text-gray-900">{metadata.tokens}</span>
                         </div>
                       )}
                       {metadata.promptTokens !== undefined && (
-                        <div>
-                          <span className="text-gray-500">Prompt:</span>
-                          <span className="ml-2 font-medium">{metadata.promptTokens}</span>
+                        <div className="bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
+                          <span className="text-gray-700 font-medium">Prompt:</span>
+                          <span className="ml-2 font-bold text-gray-900">{metadata.promptTokens}</span>
                         </div>
                       )}
                       {metadata.completionTokens !== undefined && (
-                        <div>
-                          <span className="text-gray-500">Completion:</span>
-                          <span className="ml-2 font-medium">{metadata.completionTokens}</span>
+                        <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                          <span className="text-gray-700 font-medium">Completion:</span>
+                          <span className="ml-2 font-bold text-gray-900">{metadata.completionTokens}</span>
                         </div>
                       )}
                       {metadata.latency !== undefined && (
-                        <div>
-                          <span className="text-gray-500">Latency:</span>
-                          <span className="ml-2 font-medium">{metadata.latency}ms</span>
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+                          <span className="text-gray-700 font-medium">Latency:</span>
+                          <span className="ml-2 font-bold text-gray-900">{metadata.latency}ms</span>
                         </div>
                       )}
                       {metadata.cost !== undefined && (
-                        <div>
-                          <span className="text-gray-500">Est. Cost:</span>
-                          <span className="ml-2 font-medium">${metadata.cost.toFixed(6)}</span>
+                        <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 col-span-2">
+                          <span className="text-gray-700 font-medium">Est. Cost:</span>
+                          <span className="ml-2 font-bold text-gray-900">${metadata.cost.toFixed(6)}</span>
                         </div>
                       )}
                     </div>
@@ -437,22 +437,22 @@ export default function PromptStudioPage() {
 
           {/* Right Column: CLI Panel */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow p-6 sticky top-8">
-              <h2 className="text-xl font-semibold mb-4">Developer Tools</h2>
+            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 sticky top-8">
+              <h2 className="text-xl font-bold mb-5 text-gray-900">Developer Tools</h2>
 
-              <div className="space-y-4">
+              <div className="space-y-5">
                 {/* Curl Command */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium">cURL Command</label>
+                    <label className="block text-sm font-bold text-gray-900">cURL Command</label>
                     <button
                       onClick={() => copyToClipboard(getCurlCommand())}
-                      className="text-xs text-blue-600 hover:text-blue-700"
+                      className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline transition-colors"
                     >
                       {showCopyFeedback ? '✓ Copied!' : 'Copy'}
                     </button>
                   </div>
-                  <pre className="bg-gray-900 text-gray-100 p-3 rounded text-xs overflow-x-auto">
+                  <pre className="bg-gray-900 text-green-400 p-3 rounded-lg text-xs overflow-x-auto border-2 border-gray-700 font-mono">
                     {getCurlCommand()}
                   </pre>
                 </div>
@@ -460,7 +460,7 @@ export default function PromptStudioPage() {
                 {/* JSON Body */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium">JSON Body</label>
+                    <label className="block text-sm font-bold text-gray-900">JSON Body</label>
                     <button
                       onClick={() => {
                         const messages: Message[] = [];
@@ -468,12 +468,12 @@ export default function PromptStudioPage() {
                         messages.push({ role: 'user', content: userMessage || 'Your message here' });
                         copyToClipboard(JSON.stringify({ model: selectedModel, messages, temperature, max_tokens: maxTokens }, null, 2));
                       }}
-                      className="text-xs text-blue-600 hover:text-blue-700"
+                      className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline transition-colors"
                     >
                       {showCopyFeedback ? '✓ Copied!' : 'Copy'}
                     </button>
                   </div>
-                  <pre className="bg-gray-900 text-gray-100 p-3 rounded text-xs overflow-x-auto max-h-64">
+                  <pre className="bg-gray-900 text-yellow-300 p-3 rounded-lg text-xs overflow-x-auto max-h-64 border-2 border-gray-700 font-mono">
                     {JSON.stringify({
                       model: selectedModel,
                       messages: [
@@ -487,13 +487,13 @@ export default function PromptStudioPage() {
                 </div>
 
                 {/* Quick Tips */}
-                <div className="border-t pt-4">
-                  <h3 className="text-sm font-medium mb-2">Quick Tips</h3>
-                  <ul className="text-xs text-gray-600 space-y-1">
-                    <li>• Use ⌘/Ctrl+Enter to submit</li>
-                    <li>• Watch for cache badges above</li>
-                    <li>• Try similar prompts to test semantic cache</li>
-                    <li>• Lower temperature for deterministic outputs</li>
+                <div className="border-t-2 border-gray-200 pt-4">
+                  <h3 className="text-sm font-bold text-gray-900 mb-3">Quick Tips</h3>
+                  <ul className="text-xs text-gray-700 space-y-2 font-medium">
+                    <li>💡 Use ⌘/Ctrl+Enter to submit</li>
+                    <li>🏷️ Watch for cache badges above</li>
+                    <li>🔄 Try similar prompts to test semantic cache</li>
+                    <li>🎯 Lower temperature for deterministic outputs</li>
                   </ul>
                 </div>
               </div>

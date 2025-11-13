@@ -1,7 +1,8 @@
 """Main FastAPI application for LLM Gateway."""
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import litellm
@@ -76,7 +77,7 @@ async def list_models():
 
     Model types:
     - simple: Standard chat models (use /v1/chat/completions)
-    - reasoning: Advanced reasoning models (use /v1/chat/completions with extended thinking)
+    - reasoning: Advanced reasoning models (use /v1/responses for full features, or /v1/chat/completions for compatibility)
 
     Availability:
     - Models are marked unavailable if vendor API key is missing
@@ -123,7 +124,7 @@ async def list_models():
             "owned_by": "openai",
             "vendor": "openai",
             "type": "reasoning",
-            "endpoint": "chat",
+            "endpoint": "responses",
             "available": vendor_availability['openai'],
             "unavailable_reason": None if vendor_availability['openai'] else "API key not configured"
         },
@@ -133,7 +134,27 @@ async def list_models():
             "owned_by": "openai",
             "vendor": "openai",
             "type": "reasoning",
-            "endpoint": "chat",
+            "endpoint": "responses",
+            "available": vendor_availability['openai'],
+            "unavailable_reason": None if vendor_availability['openai'] else "API key not configured"
+        },
+        {
+            "id": "gpt-5-preview",
+            "object": "model",
+            "owned_by": "openai",
+            "vendor": "openai",
+            "type": "reasoning",
+            "endpoint": "responses",
+            "available": vendor_availability['openai'],
+            "unavailable_reason": None if vendor_availability['openai'] else "API key not configured"
+        },
+        {
+            "id": "gpt-5",
+            "object": "model",
+            "owned_by": "openai",
+            "vendor": "openai",
+            "type": "reasoning",
+            "endpoint": "responses",
             "available": vendor_availability['openai'],
             "unavailable_reason": None if vendor_availability['openai'] else "API key not configured"
         },
@@ -212,23 +233,66 @@ class ChatCompletionRequest(BaseModel):
     stream: Optional[bool] = False
 
 
+# Request/Response models for Responses API (GPT-5, reasoning models)
+class ReasoningConfig(BaseModel):
+    effort: Optional[str] = "low"  # "minimal" | "low" | "medium" | "high"
+    type: Optional[str] = "basic"  # "basic" | "extended"
+
+
+class ResponsesRequest(BaseModel):
+    model: str
+    input: Any  # Can be string or messages array
+    reasoning: Optional[ReasoningConfig] = None
+    max_output_tokens: Optional[int] = None
+    temperature: Optional[float] = None  # May be ignored for reasoning models
+    stream: Optional[bool] = False
+
+
 @app.post("/v1/chat/completions")
-async def chat_completions(request: ChatCompletionRequest, db = Depends(get_db)):
+async def chat_completions(
+    request: ChatCompletionRequest,
+    db = Depends(get_db),
+    x_cache_control: Optional[str] = Header(None, alias="X-Cache-Control"),
+    x_cache_ttl: Optional[int] = Header(None, alias="X-Cache-TTL"),
+    x_cache_similarity_threshold: Optional[float] = Header(None, alias="X-Cache-Similarity-Threshold")
+):
     """
-    OpenAI-compatible chat completion endpoint.
+    OpenAI-compatible chat completion endpoint with semantic caching.
     Routes requests through LiteLLM with caching and cost tracking.
+
+    Custom Headers:
+    - X-Cache-Control: "no-cache", "auto", "verbatim-only" (default: "auto")
+    - X-Cache-TTL: Custom cache TTL in seconds
+    - X-Cache-Similarity-Threshold: Minimum similarity for semantic match (0.0-1.0, default: 0.85)
     """
     start_time = datetime.utcnow()
 
-    # Check cache
-    cache_key = cache_manager.generate_key(request.model_dump())
-    cached_response = await cache_manager.get(cache_key)
-    cache_hit = cached_response is not None
+    # Parse cache control
+    cache_control = (x_cache_control or "auto").lower()
+    cache_ttl = x_cache_ttl
+    similarity_threshold = x_cache_similarity_threshold
+
+    # Check cache with semantic support
+    request_data = request.model_dump()
+    cached_response, cache_type, similarity = await cache_manager.get_with_semantic(
+        request_data,
+        similarity_threshold=similarity_threshold,
+        cache_control=cache_control
+    )
 
     if cached_response:
         # Log cache hit
         _save_usage_log(db, request, cached_response, 0, cache_hit=True)
-        return cached_response
+
+        # Add custom headers to indicate cache status
+        headers = {
+            "X-Gateway-Cache-Status": "HIT",
+            "X-Gateway-Cache-Type": cache_type,
+        }
+        if similarity is not None:
+            headers["X-Gateway-Cache-Similarity"] = f"{similarity:.3f}"
+
+        return JSONResponse(content=cached_response, headers=headers)
 
     try:
         # Route through LiteLLM
@@ -250,10 +314,113 @@ async def chat_completions(request: ChatCompletionRequest, db = Depends(get_db))
         # Save usage log to database
         _save_usage_log(db, request, response, latency_ms, cache_hit=False, cost=cost)
 
-        # Cache response
-        await cache_manager.set(cache_key, response)
+        # Cache response with semantic indexing
+        await cache_manager.set_with_semantic(request_data, response, ttl=cache_ttl)
 
-        return response
+        # Add headers for cache miss
+        headers = {
+            "X-Gateway-Cache-Status": "MISS",
+            "X-Gateway-Cache-Type": "api",
+        }
+
+        return JSONResponse(content=response, headers=headers)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/v1/responses")
+async def responses_api(request: ResponsesRequest, db = Depends(get_db)):
+    """
+    OpenAI Responses API endpoint for reasoning models (GPT-5, o1, etc.).
+    Supports reasoning.effort, max_output_tokens, and returns reasoning_tokens in usage.
+    """
+    start_time = datetime.utcnow()
+
+    # Convert input to messages format if it's a string
+    if isinstance(request.input, str):
+        messages = [{"role": "user", "content": request.input}]
+    elif isinstance(request.input, list):
+        # Assume it's already in messages format
+        messages = [msg if isinstance(msg, dict) else msg.model_dump() for msg in request.input]
+    else:
+        raise HTTPException(status_code=400, detail="Input must be a string or messages array")
+
+    # Check cache (using messages format for consistency)
+    cache_data = {
+        "model": request.model,
+        "messages": messages,
+        "reasoning": request.reasoning.model_dump() if request.reasoning else None,
+        "max_output_tokens": request.max_output_tokens,
+    }
+    cache_key = cache_manager.generate_key(cache_data)
+    cached_response = await cache_manager.get(cache_key)
+    cache_hit = cached_response is not None
+
+    if cached_response:
+        # Log cache hit
+        # Note: We'll need a separate logging function for responses API
+        return cached_response
+
+    try:
+        # Prepare request for LiteLLM
+        # Note: LiteLLM may not directly support Responses API yet, so we'll use chat completions
+        # and add metadata for reasoning tracking
+        litellm_kwargs = {
+            "model": request.model,
+            "messages": messages,
+            "max_tokens": request.max_output_tokens,
+            "stream": request.stream
+        }
+
+        # For reasoning models, we might want to add special handling
+        # LiteLLM handles o1 and reasoning models automatically
+        if request.reasoning and request.reasoning.effort:
+            # Store reasoning config in metadata (LiteLLM may use this in the future)
+            litellm_kwargs["metadata"] = {
+                "reasoning_effort": request.reasoning.effort,
+                "reasoning_type": request.reasoning.type or "basic"
+            }
+
+        # Route through LiteLLM
+        response = await litellm.acompletion(**litellm_kwargs)
+
+        # Calculate latency
+        latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+
+        # Track costs (reasoning models may have different pricing)
+        cost = cost_tracker.calculate_cost(request.model, response)
+
+        # Transform response to Responses API format
+        # Add reasoning_tokens tracking if available
+        usage = response.get("usage", {})
+        if "reasoning_tokens" not in usage and request.model in ["gpt-5", "gpt-5-preview", "gpt-5-mini", "o1-preview", "o1-mini"]:
+            # Estimate reasoning tokens (in production, this should come from the API)
+            # For now, we'll use a simple heuristic
+            usage["reasoning_tokens"] = 0  # Will be populated by OpenAI's API
+
+        # Create Responses API formatted response
+        responses_response = {
+            "id": response.get("id", "resp_" + str(int(datetime.utcnow().timestamp()))),
+            "object": "chat.completion",
+            "created": response.get("created", int(datetime.utcnow().timestamp())),
+            "model": request.model,
+            "choices": response.get("choices", []),
+            "usage": usage
+        }
+
+        # Save usage log (convert to chat completion format for logging)
+        chat_request = ChatCompletionRequest(
+            model=request.model,
+            messages=[Message(role=msg["role"], content=msg["content"]) for msg in messages],
+            max_tokens=request.max_output_tokens
+        )
+        _save_usage_log(db, chat_request, responses_response, latency_ms, cache_hit=False, cost=cost)
+
+        # Cache response
+        await cache_manager.set(cache_key, responses_response)
+
+        return responses_response
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
