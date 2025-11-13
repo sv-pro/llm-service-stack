@@ -1,5 +1,8 @@
 /**
  * API service for communicating with the LLM backend
+ *
+ * API Key is optional for localhost development when ALLOW_LOCALHOST_BYPASS
+ * is enabled on the server. For production, always provide an API key.
  */
 
 import { ChatCompletionRequest, ChatCompletionResponse } from '../types/chat';
@@ -20,17 +23,26 @@ export class ApiService {
    * Send a chat completion request to the API
    */
   async sendMessage(request: ChatCompletionRequest): Promise<ChatCompletionResponse> {
+    // Build headers - only include Authorization if API key is provided
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (this.apiKey) {
+      headers['Authorization'] = `Bearer ${this.apiKey}`;
+    }
+
     const response = await fetch(`${this.apiUrl}/gateway`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
-      },
+      headers,
       body: JSON.stringify(request),
     });
 
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || response.statusText;
+      const hint = errorData.hint || '';
+      throw new Error(`API request failed: ${errorMessage}${hint ? ` (${hint})` : ''}`);
     }
 
     return response.json();

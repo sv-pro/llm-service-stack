@@ -59,6 +59,7 @@ services:
     environment:
       - GATEWAY_URL=http://gateway:8000
       - MONGODB_URI=mongodb://mongo:27017/llm_service
+      - ALLOW_LOCALHOST_BYPASS=true
     volumes:
       - ./app-server:/app
       - /app/node_modules

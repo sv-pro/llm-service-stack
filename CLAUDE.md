@@ -260,18 +260,31 @@ LITELLM_VERBOSE=false
 ```env
 GATEWAY_URL=http://localhost:8000
 MONGODB_URI=mongodb://localhost:27017/llm_service
+
+# Development Mode - Allow localhost requests without API keys
+# Set to 'true' for local development (default in docker-compose)
+# WARNING: Never enable this in production!
+ALLOW_LOCALHOST_BYPASS=true
 ```
 
 ### Playground `.env.local`
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3000/api
+NEXT_PUBLIC_GATEWAY_URL=http://localhost:8000
 ```
 
-### Web Chat `.env`
+### Web Chat `.env` (Optional)
 ```env
 REACT_APP_API_URL=http://localhost:3000/api
-REACT_APP_API_KEY=your_api_key
+
+# API Key is OPTIONAL for localhost development when ALLOW_LOCALHOST_BYPASS=true
+# Leave empty for local development without authentication
+# For production or explicit API key requirement, generate one with:
+#   bash scripts/create-demo-api-key.sh
+REACT_APP_API_KEY=
 ```
+
+**Note on API Keys**: When `ALLOW_LOCALHOST_BYPASS=true` is set in the app-server, requests from localhost automatically bypass API key validation. This makes local development much easier - just start all services with `make quickstart` and the web-chat works immediately without any API key configuration. For production, always disable this and require proper API keys.
 
 ## Key Architecture Patterns
 
@@ -286,6 +299,41 @@ The gateway implements OpenAI-compatible endpoints (`/v1/chat/completions`, `/v1
 
 ### Multi-Provider Routing
 LiteLLM handles routing to different providers (OpenAI, Anthropic, etc.) based on the model name in the request. No provider-specific code is needed in the application layer.
+
+### API Key Management & Localhost Bypass
+The app-server gateway proxy handles API key authentication for web-chat and other clients. Two modes are supported:
+
+**Development Mode (Localhost Bypass)**:
+- Set `ALLOW_LOCALHOST_BYPASS=true` in app-server (enabled by default in docker-compose)
+- Requests from localhost automatically bypass API key validation
+- A "dev@localhost" user is auto-created for usage tracking
+- Perfect for local development - no API key configuration needed
+- The web-chat works immediately after `make quickstart`
+
+**Production Mode (API Key Required)**:
+- Set `ALLOW_LOCALHOST_BYPASS=false` or leave unset
+- All requests must include a valid API key in the `Authorization: Bearer <key>` header
+- API keys are hashed with bcrypt and stored in MongoDB
+- Generate API keys with: `bash scripts/create-demo-api-key.sh`
+
+**Security Notes**:
+- Localhost bypass checks `X-Forwarded-For` header and `Host` header
+- Only truly local requests (127.0.0.1, ::1, localhost) are allowed
+- **Never enable localhost bypass in production environments**
+- For production, always use proper API key authentication
+
+**Creating API Keys**:
+```bash
+# Generate a new API key for the web-chat
+bash scripts/create-demo-api-key.sh
+
+# Output will show the API key (only displayed once!)
+# Add to web-chat/.env.local:
+echo 'REACT_APP_API_KEY=sk_...' > web-chat/.env.local
+
+# Restart web-chat to pick up the new key
+make restart-web-chat
+```
 
 ### Ollama Support (Local Models)
 The gateway includes built-in support for Ollama, enabling you to run LLMs locally without API costs.

@@ -1,14 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { ApiKey, Message } from '@/lib/models';
+import { ApiKey, Message, User } from '@/lib/models';
 import bcrypt from 'bcryptjs';
 
 /**
  * Gateway proxy endpoint
  * Forwards LLM requests to the gateway service with API key authentication
+ *
+ * In development mode (ALLOW_LOCALHOST_BYPASS=true), localhost requests
+ * bypass API key validation for easier testing.
  */
 
 const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:8000';
+const ALLOW_LOCALHOST_BYPASS = process.env.ALLOW_LOCALHOST_BYPASS === 'true';
+
+/**
+ * Check if request is from localhost
+ */
+function isLocalhostRequest(request: NextRequest): boolean {
+  // Check X-Forwarded-For header first (for proxied requests)
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  if (forwardedFor) {
+    const ip = forwardedFor.split(',')[0].trim();
+    if (ip === '127.0.0.1' || ip === '::1' || ip === 'localhost') {
+      return true;
+    }
+  }
+
+  // Check direct connection (when available in edge runtime)
+  const host = request.headers.get('host');
+  if (host?.startsWith('localhost:') || host?.startsWith('127.0.0.1:')) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Get or create a dev user for localhost bypass requests
+ */
+async function getOrCreateDevUser() {
+  try {
+    let devUser = await User.findOne({ email: 'dev@localhost' });
+
+    if (!devUser) {
+      devUser = await User.create({
+        email: 'dev@localhost',
+        name: 'Development User (Localhost)',
+      });
+      console.log('Created development user for localhost bypass');
+    }
+
+    return devUser;
+  } catch (error) {
+    console.error('Error getting/creating dev user:', error);
+    return null;
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,21 +65,48 @@ export async function POST(request: NextRequest) {
     // Extract API key from request headers
     const apiKey = request.headers.get('Authorization')?.replace('Bearer ', '');
 
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'Missing API key' },
-        { status: 401 }
-      );
-    }
+    // Check if localhost bypass is enabled and request is from localhost
+    const isLocalhost = isLocalhostRequest(request);
+    const bypassAuth = ALLOW_LOCALHOST_BYPASS && isLocalhost && !apiKey;
 
-    // Validate API key against database
-    const validKey = await validateApiKey(apiKey);
+    let validKey = null;
 
-    if (!validKey) {
-      return NextResponse.json(
-        { error: 'Invalid or revoked API key' },
-        { status: 401 }
-      );
+    if (bypassAuth) {
+      // Localhost bypass mode - create/use dev user for tracking
+      console.log('Localhost bypass enabled - skipping API key validation');
+      const devUser = await getOrCreateDevUser();
+
+      if (devUser) {
+        // Create a virtual key object for logging purposes
+        validKey = {
+          userId: devUser._id,
+          name: 'Localhost Bypass',
+          isActive: true,
+        };
+      }
+    } else {
+      // Normal authentication flow
+      if (!apiKey) {
+        return NextResponse.json(
+          {
+            error: 'Missing API key',
+            hint: ALLOW_LOCALHOST_BYPASS
+              ? 'Set ALLOW_LOCALHOST_BYPASS=true to bypass authentication for localhost'
+              : 'Provide an API key in the Authorization header'
+          },
+          { status: 401 }
+        );
+      }
+
+      // Validate API key against database
+      validKey = await validateApiKey(apiKey);
+
+      if (!validKey) {
+        return NextResponse.json(
+          { error: 'Invalid or revoked API key' },
+          { status: 401 }
+        );
+      }
     }
 
     // Get request body
@@ -49,7 +124,9 @@ export async function POST(request: NextRequest) {
     const data = await gatewayResponse.json();
 
     // Log usage for this API key/user
-    await logUsage(validKey, body, data);
+    if (validKey) {
+      await logUsage(validKey, body, data);
+    }
 
     return NextResponse.json(data, {
       status: gatewayResponse.status,
