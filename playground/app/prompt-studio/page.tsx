@@ -382,28 +382,42 @@ export default function PromptStudioPage() {
                   <p className="text-xs text-gray-700 mt-2 font-semibold">⌘/Ctrl+Enter to submit</p>
                 </div>
 
-                {/* Parameters */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-2">Temperature</label>
-                    <input
-                      type="number"
-                      className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-gray-900 font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
-                      value={temperature}
-                      onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                      step="0.1"
-                      min="0"
-                      max="2"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-2">Max Tokens</label>
-                    <input
-                      type="number"
-                      className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-gray-900 font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
-                      value={maxTokens}
-                      onChange={(e) => setMaxTokens(parseInt(e.target.value))}
-                    />
+                {/* Submit Button */}
+                <button
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold px-4 py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg"
+                  onClick={handleGenerate}
+                  disabled={loading || !userMessage.trim()}
+                >
+                  {loading ? 'Generating...' : 'Generate Response'}
+                </button>
+
+                {/* Advanced Settings Divider */}
+                <div className="border-t-2 border-gray-300 pt-4">
+                  <h3 className="text-sm font-bold text-gray-900 mb-4">Advanced Settings</h3>
+
+                  {/* Parameters */}
+                  <div className="grid grid-cols-2 gap-4 mb-5">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-900 mb-2">Temperature</label>
+                      <input
+                        type="number"
+                        className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-gray-900 font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
+                        value={temperature}
+                        onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                        step="0.1"
+                        min="0"
+                        max="2"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-900 mb-2">Max Tokens</label>
+                      <input
+                        type="number"
+                        className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-gray-900 font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
+                        value={maxTokens}
+                        onChange={(e) => setMaxTokens(parseInt(e.target.value))}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -485,15 +499,6 @@ export default function PromptStudioPage() {
                     </div>
                   )}
                 </div>
-
-                {/* Submit Button */}
-                <button
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold px-4 py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg"
-                  onClick={handleGenerate}
-                  disabled={loading || !userMessage.trim()}
-                >
-                  {loading ? 'Generating...' : 'Generate Response'}
-                </button>
               </div>
             </div>
           </div>
