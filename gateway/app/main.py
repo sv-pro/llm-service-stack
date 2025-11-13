@@ -315,14 +315,17 @@ async def chat_completions(
         # Calculate latency
         latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
 
+        # Convert LiteLLM response to dict
+        response_dict = dict(response) if hasattr(response, '__dict__') else response
+
         # Track costs
-        cost = cost_tracker.calculate_cost(request.model, response)
+        cost = cost_tracker.calculate_cost(request.model, response_dict)
 
         # Save usage log to database
-        _save_usage_log(db, request, response, latency_ms, cache_hit=False, cost=cost)
+        _save_usage_log(db, request, response_dict, latency_ms, cache_hit=False, cost=cost)
 
         # Cache response with semantic indexing
-        await cache_manager.set_with_semantic(request_data, response, ttl=cache_ttl)
+        await cache_manager.set_with_semantic(request_data, response_dict, ttl=cache_ttl)
 
         # Add headers for cache miss
         headers = {
@@ -330,7 +333,7 @@ async def chat_completions(
             "X-Gateway-Cache-Type": "api",
         }
 
-        return JSONResponse(content=response, headers=headers)
+        return JSONResponse(content=response_dict, headers=headers)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -395,12 +398,15 @@ async def responses_api(request: ResponsesRequest, db = Depends(get_db)):
         # Calculate latency
         latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
 
+        # Convert LiteLLM response to dict
+        response_dict = dict(response) if hasattr(response, '__dict__') else response
+
         # Track costs (reasoning models may have different pricing)
-        cost = cost_tracker.calculate_cost(request.model, response)
+        cost = cost_tracker.calculate_cost(request.model, response_dict)
 
         # Transform response to Responses API format
         # Add reasoning_tokens tracking if available
-        usage = response.get("usage", {})
+        usage = response_dict.get("usage", {})
         if "reasoning_tokens" not in usage and request.model in ["gpt-5", "gpt-5-preview", "gpt-5-mini", "o1-preview", "o1-mini"]:
             # Estimate reasoning tokens (in production, this should come from the API)
             # For now, we'll use a simple heuristic
@@ -408,11 +414,11 @@ async def responses_api(request: ResponsesRequest, db = Depends(get_db)):
 
         # Create Responses API formatted response
         responses_response = {
-            "id": response.get("id", "resp_" + str(int(datetime.utcnow().timestamp()))),
+            "id": response_dict.get("id", "resp_" + str(int(datetime.utcnow().timestamp()))),
             "object": "chat.completion",
-            "created": response.get("created", int(datetime.utcnow().timestamp())),
+            "created": response_dict.get("created", int(datetime.utcnow().timestamp())),
             "model": request.model,
-            "choices": response.get("choices", []),
+            "choices": response_dict.get("choices", []),
             "usage": usage
         }
 
