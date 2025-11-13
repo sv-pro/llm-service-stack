@@ -194,6 +194,56 @@ async def get_usage_stats():
     return stats
 
 
+@app.get("/v1/usage/logs")
+async def get_usage_logs(
+    limit: int = 100,
+    offset: int = 0,
+    model: Optional[str] = None,
+    db = Depends(get_db)
+):
+    """Get usage logs from the database with optional filtering."""
+    try:
+        query = db.query(UsageLog)
+
+        # Filter by model if specified
+        if model:
+            query = query.filter(UsageLog.model == model)
+
+        # Get total count for pagination
+        total = query.count()
+
+        # Apply pagination and order by timestamp descending
+        logs = query.order_by(UsageLog.timestamp.desc()).offset(offset).limit(limit).all()
+
+        # Convert to dict for JSON response
+        logs_data = []
+        for log in logs:
+            logs_data.append({
+                "id": log.id,
+                "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+                "model": log.model,
+                "provider": log.provider,
+                "prompt_tokens": log.prompt_tokens,
+                "completion_tokens": log.completion_tokens,
+                "total_tokens": log.total_tokens,
+                "cost": log.cost,
+                "latency_ms": log.latency_ms,
+                "user_id": log.user_id,
+                "api_key_id": log.api_key_id,
+                "cache_hit": bool(log.cache_hit),
+            })
+
+        return {
+            "logs": logs_data,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        }
+    except Exception as e:
+        print(f"Error fetching usage logs: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch usage logs")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
