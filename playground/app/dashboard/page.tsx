@@ -52,7 +52,6 @@ interface GatewayStats {
   total_requests: number;
   total_cost: number;
   total_tokens: number;
-  cache_hit_rate: number;
   by_model: Record<string, {
     requests: number;
     cost: number;
@@ -244,9 +243,9 @@ export default function DashboardPage() {
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">Cache Hit Rate</span>
+                <span className="text-sm text-gray-500">Total Tokens</span>
                 <span className="text-lg font-semibold">
-                  {gatewayStats?.cache_hit_rate ? (gatewayStats.cache_hit_rate * 100).toFixed(1) : '0'}%
+                  {gatewayStats?.total_tokens ? (gatewayStats.total_tokens / 1000).toFixed(1) + 'K' : '0'}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -256,33 +255,36 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Request Distribution */}
+          {/* Cost Breakdown */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold mb-4">Request Distribution</h2>
-            {gatewayStats?.total_requests ? (
+            <h2 className="text-xl font-semibold mb-4">Cost Breakdown by Model</h2>
+            {gatewayStats?.total_requests && gatewayStats.total_cost > 0 ? (
               <div className="space-y-3">
-                {Object.entries(gatewayStats.by_provider || {}).map(([provider, data]) => (
-                  <div key={provider}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium capitalize">{provider}</span>
-                      <span className="text-sm text-gray-500">
-                        {data.requests} requests (${data.cost.toFixed(4)})
-                      </span>
+                {Object.entries(gatewayStats.by_model || {})
+                  .sort(([, a], [, b]) => b.cost - a.cost)
+                  .slice(0, 5)
+                  .map(([model, data]) => (
+                    <div key={model}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium">{model}</span>
+                        <span className="text-sm text-gray-500">
+                          ${data.cost.toFixed(4)} ({data.requests} requests)
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                        <div
+                          className="bg-purple-600 h-2 rounded-full"
+                          style={{
+                            width: `${(data.cost / gatewayStats.total_cost) * 100}%`
+                          }}
+                        ></div>
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full"
-                        style={{
-                          width: `${(data.requests / gatewayStats.total_requests) * 100}%`
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             ) : (
               <div className="h-40 flex items-center justify-center text-gray-500">
-                No request data yet
+                No cost data yet
               </div>
             )}
           </div>

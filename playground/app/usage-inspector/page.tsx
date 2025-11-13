@@ -27,7 +27,6 @@ interface GatewayStats {
   total_requests: number;
   total_cost: number;
   total_tokens: number;
-  cache_hit_rate: number;
   by_model: Record<string, {
     requests: number;
     cost: number;
@@ -97,6 +96,11 @@ export default function UsageInspectorPage() {
   const uniqueModels = stats
     ? [...new Set(Object.keys(stats.by_model))]
     : [];
+
+  // Calculate cache hit rate from logs
+  const cacheHitRate = logs.length > 0
+    ? (logs.filter(log => log.cache_hit).length / logs.length) * 100
+    : 0;
 
   if (loading && !logs.length) {
     return (
@@ -188,7 +192,10 @@ export default function UsageInspectorPage() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <div className="text-sm text-gray-500 mb-1">Cache Hit Rate</div>
             <div className="text-3xl font-bold">
-              {stats?.cache_hit_rate ? (stats.cache_hit_rate * 100).toFixed(1) : '0'}%
+              {cacheHitRate.toFixed(1)}%
+            </div>
+            <div className="text-xs text-gray-400 mt-1">
+              Based on current page
             </div>
           </div>
         </div>

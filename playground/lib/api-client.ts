@@ -85,15 +85,10 @@ interface GatewayStats {
   total_requests: number;
   total_cost: number;
   total_tokens: number;
-  cache_hit_rate: number;
   by_model: Record<string, {
     requests: number;
     cost: number;
     tokens: number;
-  }>;
-  by_provider: Record<string, {
-    requests: number;
-    cost: number;
   }>;
 }
 
