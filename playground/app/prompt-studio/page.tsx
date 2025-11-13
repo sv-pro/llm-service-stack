@@ -92,8 +92,19 @@ export default function PromptStudioPage() {
     intent: string;
     reasoning: string;
     confidence: number;
+    experimental_recursive?: {
+      iterations: number;
+      converged: boolean;
+      final_similarity: number;
+      iteration_history: any[];
+    };
   } | null>(null);
   const [enhancing, setEnhancing] = useState(false);
+
+  // Experimental: Recursive enhancement controls
+  const [recursiveEnabled, setRecursiveEnabled] = useState(false);
+  const [maxIterations, setMaxIterations] = useState(5);
+  const [similarityThreshold, setSimilarityThreshold] = useState(0.95);
 
   // Load models on mount
   useEffect(() => {
@@ -146,7 +157,11 @@ export default function PromptStudioPage() {
           context: {
             model: selectedModel,
             temperature
-          }
+          },
+          // Experimental: Recursive enhancement
+          experimental_recursive: recursiveEnabled,
+          max_iterations: maxIterations,
+          similarity_threshold: similarityThreshold
         })
       });
 
@@ -163,7 +178,8 @@ export default function PromptStudioPage() {
         improvements: data.improvements,
         intent: data.detected_intent,
         reasoning: data.reasoning,
-        confidence: data.confidence
+        confidence: data.confidence,
+        experimental_recursive: data.experimental_recursive
       });
 
     } catch (err: any) {
@@ -441,6 +457,57 @@ export default function PromptStudioPage() {
                   <p className="text-xs text-gray-700 mt-2 font-semibold">⌘/Ctrl+Enter to submit</p>
                 </div>
 
+                {/* Experimental: Recursive Enhancement Controls */}
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="recursive-enhancement"
+                      checked={recursiveEnabled}
+                      onChange={(e) => setRecursiveEnabled(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="recursive-enhancement" className="text-sm font-bold text-blue-900 cursor-pointer">
+                      🔬 Recursive Enhancement (Experimental)
+                    </label>
+                  </div>
+
+                  {recursiveEnabled && (
+                    <div className="ml-6 space-y-2 mt-2">
+                      <div className="flex items-center gap-3">
+                        <label className="text-xs font-semibold text-blue-800 w-32">Max Iterations:</label>
+                        <input
+                          type="number"
+                          min="2"
+                          max="10"
+                          value={maxIterations}
+                          onChange={(e) => setMaxIterations(parseInt(e.target.value))}
+                          className="w-16 px-2 py-1 text-sm border border-blue-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <span className="text-xs text-blue-600">(2-10)</span>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <label className="text-xs font-semibold text-blue-800 w-32">Similarity Threshold:</label>
+                        <input
+                          type="number"
+                          min="0.8"
+                          max="0.99"
+                          step="0.01"
+                          value={similarityThreshold}
+                          onChange={(e) => setSimilarityThreshold(parseFloat(e.target.value))}
+                          className="w-16 px-2 py-1 text-sm border border-blue-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <span className="text-xs text-blue-600">(0.8-0.99)</span>
+                      </div>
+
+                      <p className="text-xs text-blue-700 mt-1">
+                        💡 Enhances recursively until prompts converge or max iterations reached
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 {/* Smart Prompts: Enhance Button */}
                 <button
                   onClick={handleEnhancePrompt}
@@ -497,6 +564,61 @@ export default function PromptStudioPage() {
                           <label className="block text-sm font-bold text-purple-900 mb-1">Reasoning:</label>
                           <div className="bg-white border border-purple-200 rounded p-3 text-sm text-gray-700 italic">
                             {enhancedPrompt.reasoning}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Convergence Visualization (Experimental Recursive) */}
+                      {enhancedPrompt.experimental_recursive && (
+                        <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-3">
+                          <label className="block text-sm font-bold text-blue-900 mb-2">🔬 Recursive Enhancement Results:</label>
+
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-blue-800">Iterations:</span>
+                              <span className="text-xs bg-blue-100 px-2 py-1 rounded border border-blue-300 font-semibold">
+                                {enhancedPrompt.experimental_recursive.iterations}
+                              </span>
+                              {enhancedPrompt.experimental_recursive.converged ? (
+                                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded border border-green-300 font-semibold">
+                                  ✓ Converged
+                                </span>
+                              ) : (
+                                <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded border border-yellow-300 font-semibold">
+                                  ⚠ Max iterations reached
+                                </span>
+                              )}
+                            </div>
+
+                            {enhancedPrompt.experimental_recursive.final_similarity > 0 && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-blue-800">Final Similarity:</span>
+                                <span className="text-xs bg-blue-100 px-2 py-1 rounded border border-blue-300 font-semibold">
+                                  {(enhancedPrompt.experimental_recursive.final_similarity * 100).toFixed(1)}%
+                                </span>
+                              </div>
+                            )}
+
+                            {enhancedPrompt.experimental_recursive.iteration_history.length > 1 && (
+                              <div className="mt-2">
+                                <p className="text-xs font-semibold text-blue-800 mb-1">Convergence Path:</p>
+                                <div className="bg-white border border-blue-200 rounded p-2 text-xs space-y-1">
+                                  {enhancedPrompt.experimental_recursive.iteration_history.map((iter: any, idx: number) => {
+                                    const isLast = idx === enhancedPrompt.experimental_recursive!.iteration_history.length - 1;
+                                    return (
+                                      <div key={idx} className="flex items-center gap-2">
+                                        <span className="font-semibold text-blue-700">Iteration {iter.iteration}</span>
+                                        <span className="text-gray-600">→</span>
+                                        <span className="text-gray-700">{iter.detected_intent}</span>
+                                        {isLast && enhancedPrompt.experimental_recursive!.converged && (
+                                          <span className="ml-auto text-green-600 font-semibold">✓</span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}

@@ -73,5 +73,11 @@ class EnhancedPrompt(Base):
     user_feedback = Column(String, nullable=True)  # 'used' | 'edited' | 'discarded'
     feedback_timestamp = Column(DateTime, nullable=True)
 
+    # Experimental: Recursive enhancement metadata
+    recursive_iterations = Column(Integer, nullable=True)  # Number of iterations performed
+    recursive_converged = Column(Integer, nullable=True)  # 1 if converged, 0 if hit max iterations
+    recursive_final_similarity = Column(Float, nullable=True)  # Final similarity score
+    recursive_history = Column(JSON, nullable=True)  # Full iteration history
+
     def __repr__(self):
         return f"<EnhancedPrompt(id={self.id}, intent={self.detected_intent}, confidence={self.confidence})>"

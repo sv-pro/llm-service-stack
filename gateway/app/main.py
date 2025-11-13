@@ -559,39 +559,14 @@ async def get_usage_logs(
         raise HTTPException(status_code=500, detail="Failed to fetch usage logs")
 
 
-# Stage 2: Smart Prompts - Pydantic models
-class EnhancePromptRequest(BaseModel):
-    """Request to enhance a naive prompt."""
-    system: str
-    user: str
-    context: Optional[dict] = {}
-
-
-class EnhancePromptResponse(BaseModel):
-    """Response with enhanced prompt and metadata."""
-    enhanced: dict
-    improvements: List[str]
-    detected_intent: str
-    reasoning: str
-    confidence: float
-    original: dict
-
-
-@app.post("/v1/prompts/enhance")
-async def enhance_prompt(request: EnhancePromptRequest, db = Depends(get_db)):
-    """
-    Stage 2: Smart Prompts
-
-    Use GPT-4 or Claude to improve a naive prompt.
-    Returns enhanced version with metadata and improvements.
-    """
-    try:
-        # Metaprompt for enhancement
-        metaprompt = f"""You are a prompt engineering expert. Analyze and improve this prompt for clarity, specificity, and effectiveness.
+# Stage 2: Smart Prompts - Helper functions
+async def _enhance_once(system: str, user: str) -> dict:
+    """Helper function to enhance a prompt once."""
+    metaprompt = f"""You are a prompt engineering expert. Analyze and improve this prompt for clarity, specificity, and effectiveness.
 
 Original Prompt:
-System: {request.system}
-User: {request.user}
+System: {system}
+User: {user}
 
 Your task:
 1. Rewrite both system and user prompts to be clearer and more specific
@@ -612,36 +587,207 @@ Return a JSON object with this exact structure:
 
 Make sure the JSON is valid and parseable."""
 
-        # Call GPT-4 for enhancement
-        # Note: LiteLLM may log non-blocking threading errors - these are harmless
-        # Metaprompt explicitly requests JSON format, no need for response_format param
-        response = await litellm.acompletion(
-            model="gpt-4",
-            messages=[{"role": "user", "content": metaprompt}],
-            temperature=0.3  # Lower temp for consistent results
-        )
+    # Call GPT-4 for enhancement
+    # Note: LiteLLM may log non-blocking threading errors - these are harmless
+    # Metaprompt explicitly requests JSON format, no need for response_format param
+    response = await litellm.acompletion(
+        model="gpt-4",
+        messages=[{"role": "user", "content": metaprompt}],
+        temperature=0.3  # Lower temp for consistent results
+    )
 
-        # Extract content immediately to avoid threading issues with LiteLLM logging
-        if hasattr(response, 'model_dump'):
-            response_dict = response.model_dump()
-        elif hasattr(response, 'dict'):
-            response_dict = response.dict()
+    # Extract content immediately to avoid threading issues with LiteLLM logging
+    if hasattr(response, 'model_dump'):
+        response_dict = response.model_dump()
+    elif hasattr(response, 'dict'):
+        response_dict = response.dict()
+    else:
+        response_dict = dict(response)
+
+    result_text = response_dict["choices"][0]["message"]["content"]
+
+    # Parse JSON with fallback for edge cases
+    try:
+        result = json.loads(result_text)
+    except json.JSONDecodeError:
+        # If direct parsing fails, try to extract JSON from text
+        import re
+        json_match = re.search(r'\{.*\}', result_text, re.DOTALL)
+        if json_match:
+            result = json.loads(json_match.group())
         else:
-            response_dict = dict(response)
+            raise ValueError(f"Could not parse JSON from response: {result_text[:200]}")
 
-        result_text = response_dict["choices"][0]["message"]["content"]
+    return result
 
-        # Parse JSON with fallback for edge cases
-        try:
-            result = json.loads(result_text)
-        except json.JSONDecodeError:
-            # If direct parsing fails, try to extract JSON from text
-            import re
-            json_match = re.search(r'\{.*\}', result_text, re.DOTALL)
-            if json_match:
-                result = json.loads(json_match.group())
-            else:
-                raise ValueError(f"Could not parse JSON from response: {result_text[:200]}")
+
+async def _compute_similarity(text1: str, text2: str) -> float:
+    """Compute cosine similarity between two texts using embeddings."""
+    # Use text-embedding-3-small for fast, cheap embeddings
+    response1 = await litellm.aembedding(model="text-embedding-3-small", input=[text1])
+    response2 = await litellm.aembedding(model="text-embedding-3-small", input=[text2])
+
+    # Extract embeddings
+    if hasattr(response1, 'model_dump'):
+        embedding1 = response1.model_dump()["data"][0]["embedding"]
+        embedding2 = response2.model_dump()["data"][0]["embedding"]
+    elif hasattr(response1, 'dict'):
+        embedding1 = response1.dict()["data"][0]["embedding"]
+        embedding2 = response2.dict()["data"][0]["embedding"]
+    else:
+        embedding1 = response1["data"][0]["embedding"]
+        embedding2 = response2["data"][0]["embedding"]
+
+    # Compute cosine similarity (using numpy for efficiency)
+    import numpy as np
+    vec1 = np.array(embedding1)
+    vec2 = np.array(embedding2)
+
+    # Cosine similarity = dot product / (norm1 * norm2)
+    similarity = np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
+
+    return float(similarity)
+
+
+# Stage 2: Smart Prompts - Pydantic models
+class EnhancePromptRequest(BaseModel):
+    """Request to enhance a naive prompt."""
+    system: str
+    user: str
+    context: Optional[dict] = {}
+
+    # Experimental: Recursive enhancement until convergence
+    experimental_recursive: bool = False
+    max_iterations: int = 5  # Safety limit
+    similarity_threshold: float = 0.95  # Stop when similarity exceeds this (0-1)
+
+
+class EnhancePromptResponse(BaseModel):
+    """Response with enhanced prompt and metadata."""
+    enhanced: dict
+    improvements: List[str]
+    detected_intent: str
+    reasoning: str
+    confidence: float
+    original: dict
+
+    # Recursive enhancement metadata (only present if experimental_recursive=True)
+    experimental_recursive: Optional[dict] = None
+    # {
+    #   "iterations": 3,
+    #   "converged": true,
+    #   "final_similarity": 0.96,
+    #   "iteration_history": [...]
+    # }
+
+
+@app.post("/v1/prompts/enhance")
+async def enhance_prompt(request: EnhancePromptRequest, db = Depends(get_db)):
+    """
+    Stage 2: Smart Prompts
+
+    Use GPT-4 or Claude to improve a naive prompt.
+    Returns enhanced version with metadata and improvements.
+    """
+    try:
+        # Experimental: Recursive enhancement
+        if request.experimental_recursive:
+            print(f"🔬 Recursive enhancement enabled: max_iterations={request.max_iterations}, threshold={request.similarity_threshold}")
+
+            iteration_history = []
+            current_system = request.system
+            current_user = request.user
+            converged = False
+            final_similarity = 0.0
+
+            for iteration in range(request.max_iterations):
+                print(f"  Iteration {iteration + 1}/{request.max_iterations}...")
+
+                # Enhance current prompt
+                result = await _enhance_once(current_system, current_user)
+
+                # Store iteration result
+                iteration_history.append({
+                    "iteration": iteration + 1,
+                    "system": result["enhanced_system"],
+                    "user": result["enhanced_user"],
+                    "improvements": result["improvements"],
+                    "detected_intent": result["detected_intent"],
+                    "reasoning": result["reasoning"],
+                    "confidence": result.get("confidence", 0.0)
+                })
+
+                # Check for convergence (after first iteration)
+                if iteration > 0:
+                    # Compute similarity between current and previous iteration
+                    prev_prompt = f"{iteration_history[-2]['system']}\n{iteration_history[-2]['user']}"
+                    curr_prompt = f"{result['enhanced_system']}\n{result['enhanced_user']}"
+
+                    similarity = await _compute_similarity(prev_prompt, curr_prompt)
+                    final_similarity = similarity
+
+                    print(f"    Similarity: {similarity:.4f} (threshold: {request.similarity_threshold})")
+
+                    if similarity >= request.similarity_threshold:
+                        print(f"    ✓ Converged at iteration {iteration + 1}")
+                        converged = True
+                        break
+
+                # Prepare for next iteration
+                current_system = result["enhanced_system"]
+                current_user = result["enhanced_user"]
+
+            # Use the final iteration result
+            final_result = iteration_history[-1]
+
+            # Store for template building (Stage 3)
+            enhanced_prompt_id = str(uuid.uuid4())
+            enhanced_prompt = EnhancedPrompt(
+                id=enhanced_prompt_id,
+                timestamp=datetime.utcnow(),
+                original_system=request.system,
+                original_user=request.user,
+                enhanced_system=final_result["system"],
+                enhanced_user=final_result["user"],
+                improvements=final_result["improvements"],
+                detected_intent=final_result["detected_intent"],
+                reasoning=final_result["reasoning"],
+                confidence=final_result.get("confidence", 0.0),
+                model_used="gpt-4",
+                # Recursive metadata
+                recursive_iterations=len(iteration_history),
+                recursive_converged=1 if converged else 0,
+                recursive_final_similarity=final_similarity,
+                recursive_history=iteration_history
+            )
+
+            db.add(enhanced_prompt)
+            db.commit()
+            db.refresh(enhanced_prompt)
+
+            return EnhancePromptResponse(
+                enhanced={
+                    "system": final_result["system"],
+                    "user": final_result["user"]
+                },
+                improvements=final_result["improvements"],
+                detected_intent=final_result["detected_intent"],
+                reasoning=final_result["reasoning"],
+                confidence=final_result.get("confidence", 0.0),
+                original={
+                    "system": request.system,
+                    "user": request.user
+                },
+                experimental_recursive={
+                    "iterations": len(iteration_history),
+                    "converged": converged,
+                    "final_similarity": final_similarity,
+                    "iteration_history": iteration_history
+                }
+            )
+
+        # Standard (non-recursive) enhancement
+        result = await _enhance_once(request.system, request.user)
 
         # Store for template building (Stage 3)
         enhanced_prompt_id = str(uuid.uuid4())
