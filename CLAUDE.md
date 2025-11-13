@@ -48,6 +48,49 @@ web-chat + playground → app-server → gateway → LLM providers (OpenAI, Anth
 
 ## Development Commands
 
+### Makefile (Quickest Way)
+
+A comprehensive Makefile is provided for convenient lifecycle management:
+
+```bash
+# Quick start - build and run everything
+make quickstart
+
+# Show all available commands
+make help
+
+# Service management
+make start              # Start all services
+make stop               # Stop all services
+make restart            # Restart all services
+make status             # Show service status
+
+# Individual services
+make start-gateway      # Start only gateway
+make restart-app-server # Restart only app-server
+make logs-playground    # View playground logs
+
+# Database operations
+make mongo-shell        # Connect to MongoDB shell
+make mongo-backup       # Backup database
+make redis-flush        # Clear Redis cache
+
+# Development
+make dev-gateway        # Run gateway locally (no Docker)
+make install            # Install all dependencies
+make test               # Run all tests
+
+# Cleanup
+make clean              # Remove all containers and volumes
+make clean-cache        # Clear all caches
+```
+
+**Most useful commands**:
+- `make quickstart` - One command to build and start everything
+- `make status` - Check health of all services
+- `make logs` - Follow logs for all services
+- `make help` - See all 50+ available commands
+
 ### Docker Compose (Recommended)
 
 ```bash
@@ -243,6 +286,47 @@ The gateway implements OpenAI-compatible endpoints (`/v1/chat/completions`, `/v1
 
 ### Multi-Provider Routing
 LiteLLM handles routing to different providers (OpenAI, Anthropic, etc.) based on the model name in the request. No provider-specific code is needed in the application layer.
+
+### Ollama Support (Local Models)
+The gateway includes built-in support for Ollama, enabling you to run LLMs locally without API costs.
+
+**Features**:
+- Automatic detection of Ollama installation on startup
+- Health checks for required models
+- Seamless integration with LiteLLM routing
+- Cost-free local inference
+
+**Setup**:
+1. Install Ollama: https://ollama.ai
+2. Start Ollama: `ollama serve`
+3. Pull models: `ollama pull llama2`, `ollama pull codellama`, etc.
+4. Configure in `gateway/.env`:
+   ```env
+   OLLAMA_API_BASE=http://localhost:11434
+   OLLAMA_CHECK_MODELS=llama2,codellama
+   OLLAMA_ENABLED=true
+   ```
+
+**Usage**:
+```bash
+# List available models (includes Ollama models if running)
+curl http://localhost:8000/v1/models
+
+# Use Ollama model via gateway
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "ollama/llama2",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+
+**Startup Checks**:
+When the gateway starts, it automatically:
+- Checks if Ollama is accessible
+- Lists installed models
+- Validates required models (if specified)
+- Provides installation commands if models are missing
 
 ## Common Development Tasks
 

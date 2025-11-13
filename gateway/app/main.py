@@ -12,6 +12,7 @@ from .database import init_db, get_db
 from .models import UsageLog
 from .cache import CacheManager
 from .cost_tracker import CostTracker
+from .ollama_checker import check_ollama_on_startup, ollama_checker
 
 app = FastAPI(
     title="LLM Gateway Service",
@@ -39,6 +40,14 @@ async def startup_event():
     init_db()
     litellm.set_verbose = settings.LITELLM_VERBOSE
 
+    # Check Ollama availability
+    await check_ollama_on_startup()
+
+    # Configure Ollama API base if available
+    if ollama_checker.available:
+        import os
+        os.environ["OLLAMA_API_BASE"] = settings.OLLAMA_API_BASE
+
 
 @app.get("/")
 async def root():
@@ -55,9 +64,23 @@ async def list_models():
     """List available models (OpenAI-compatible endpoint)."""
     models = [
         {"id": "gpt-4", "object": "model", "owned_by": "openai"},
+        {"id": "gpt-4-turbo", "object": "model", "owned_by": "openai"},
         {"id": "gpt-3.5-turbo", "object": "model", "owned_by": "openai"},
+        {"id": "claude-3-opus-20240229", "object": "model", "owned_by": "anthropic"},
+        {"id": "claude-3-sonnet-20240229", "object": "model", "owned_by": "anthropic"},
         {"id": "claude-2", "object": "model", "owned_by": "anthropic"},
     ]
+
+    # Add Ollama models if available
+    if ollama_checker.available and ollama_checker.installed_models:
+        for model_name in ollama_checker.installed_models:
+            # Use Ollama prefix for LiteLLM routing
+            models.append({
+                "id": f"ollama/{model_name}",
+                "object": "model",
+                "owned_by": "ollama"
+            })
+
     return {"object": "list", "data": models}
 
 
