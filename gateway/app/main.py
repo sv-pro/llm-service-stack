@@ -315,8 +315,17 @@ async def chat_completions(
         # Calculate latency
         latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
 
-        # Convert LiteLLM response to dict
-        response_dict = dict(response) if hasattr(response, '__dict__') else response
+        # Convert LiteLLM response to dict (properly handle Pydantic models)
+        if hasattr(response, 'model_dump'):
+            # Pydantic v2 - recursively converts nested models
+            response_dict = response.model_dump()
+        elif hasattr(response, 'dict'):
+            # Pydantic v1 - recursively converts nested models
+            response_dict = response.dict()
+        else:
+            # Fallback: JSON round-trip for any remaining serialization issues
+            import json as json_lib
+            response_dict = json_lib.loads(json_lib.dumps(response, default=str))
 
         # Track costs
         cost = cost_tracker.calculate_cost(request.model, response_dict)
@@ -398,8 +407,17 @@ async def responses_api(request: ResponsesRequest, db = Depends(get_db)):
         # Calculate latency
         latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
 
-        # Convert LiteLLM response to dict
-        response_dict = dict(response) if hasattr(response, '__dict__') else response
+        # Convert LiteLLM response to dict (properly handle Pydantic models)
+        if hasattr(response, 'model_dump'):
+            # Pydantic v2 - recursively converts nested models
+            response_dict = response.model_dump()
+        elif hasattr(response, 'dict'):
+            # Pydantic v1 - recursively converts nested models
+            response_dict = response.dict()
+        else:
+            # Fallback: JSON round-trip for any remaining serialization issues
+            import json as json_lib
+            response_dict = json_lib.loads(json_lib.dumps(response, default=str))
 
         # Track costs (reasoning models may have different pricing)
         cost = cost_tracker.calculate_cost(request.model, response_dict)
