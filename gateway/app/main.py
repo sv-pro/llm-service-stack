@@ -28,6 +28,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Gateway-Cache-Status", "X-Gateway-Cache-Type", "X-Gateway-Cache-Similarity"],
 )
 
 # Initialize components
