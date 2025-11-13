@@ -27,8 +27,10 @@ check_service() {
     echo -e "${YELLOW}Checking $name at $url...${NC}"
 
     while [ $attempt -le $max_attempts ]; do
-        if curl -s -o /dev/null -w "%{http_code}" "$url" | grep -q "200\|301\|302"; then
-            echo -e "${GREEN}✓ $name is running${NC}"
+        http_code=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+        # Accept 2xx and 3xx status codes (success and redirects)
+        if [[ $http_code =~ ^[23] ]]; then
+            echo -e "${GREEN}✓ $name is running (HTTP $http_code)${NC}"
             return 0
         fi
         echo -n "."
