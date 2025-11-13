@@ -21,35 +21,35 @@ help: ## Display this help message
 
 status: ## Show status of all services
 	@echo "$(BLUE)==> Checking Docker services status...$(NC)"
-	@docker compose ps
+	@docker-compose ps
 	@echo ""
 	@echo "$(BLUE)==> Checking service health...$(NC)"
-	@docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+	@docker-compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 
 start: ## Start all services
 	@echo "$(GREEN)==> Starting all services...$(NC)"
-	@docker compose up -d
+	@docker-compose up -d
 	@echo "$(GREEN)==> Services started!$(NC)"
 	@make status
 
 stop: ## Stop all services
 	@echo "$(YELLOW)==> Stopping all services...$(NC)"
-	@docker compose stop
+	@docker-compose stop
 	@echo "$(GREEN)==> Services stopped!$(NC)"
 
 down: ## Stop and remove all containers
 	@echo "$(RED)==> Stopping and removing all containers...$(NC)"
-	@docker compose down
+	@docker-compose down
 	@echo "$(GREEN)==> Containers removed!$(NC)"
 
 restart: ## Restart all services
 	@echo "$(YELLOW)==> Restarting all services...$(NC)"
-	@docker compose restart
+	@docker-compose restart
 	@echo "$(GREEN)==> Services restarted!$(NC)"
 
 build: ## Build or rebuild all services
 	@echo "$(BLUE)==> Building all services...$(NC)"
-	@docker compose build --no-cache
+	@docker-compose build --no-cache
 	@echo "$(GREEN)==> Build complete!$(NC)"
 
 rebuild: ## Rebuild and restart all services
@@ -61,75 +61,75 @@ rebuild: ## Rebuild and restart all services
 
 start-gateway: ## Start gateway service only
 	@echo "$(GREEN)==> Starting gateway service...$(NC)"
-	@docker compose up -d gateway redis
-	@docker compose ps gateway
+	@docker-compose up -d gateway redis
+	@docker-compose ps gateway
 
 stop-gateway: ## Stop gateway service
 	@echo "$(YELLOW)==> Stopping gateway service...$(NC)"
-	@docker compose stop gateway
+	@docker-compose stop gateway
 
 restart-gateway: ## Restart gateway service
 	@echo "$(YELLOW)==> Restarting gateway service...$(NC)"
-	@docker compose restart gateway
+	@docker-compose restart gateway
 
 start-app-server: ## Start app-server service only
 	@echo "$(GREEN)==> Starting app-server service...$(NC)"
-	@docker compose up -d app-server mongo
-	@docker compose ps app-server
+	@docker-compose up -d app-server mongo
+	@docker-compose ps app-server
 
 stop-app-server: ## Stop app-server service
 	@echo "$(YELLOW)==> Stopping app-server service...$(NC)"
-	@docker compose stop app-server
+	@docker-compose stop app-server
 
 restart-app-server: ## Restart app-server service
 	@echo "$(YELLOW)==> Restarting app-server service...$(NC)"
-	@docker compose restart app-server
+	@docker-compose restart app-server
 
 start-playground: ## Start playground service only
 	@echo "$(GREEN)==> Starting playground service...$(NC)"
-	@docker compose up -d playground
-	@docker compose ps playground
+	@docker-compose up -d playground
+	@docker-compose ps playground
 
 stop-playground: ## Stop playground service
 	@echo "$(YELLOW)==> Stopping playground service...$(NC)"
-	@docker compose stop playground
+	@docker-compose stop playground
 
 restart-playground: ## Restart playground service
 	@echo "$(YELLOW)==> Restarting playground service...$(NC)"
-	@docker compose restart playground
+	@docker-compose restart playground
 
 start-web-chat: ## Start web-chat service only
 	@echo "$(GREEN)==> Starting web-chat service...$(NC)"
-	@docker compose up -d web-chat
-	@docker compose ps web-chat
+	@docker-compose up -d web-chat
+	@docker-compose ps web-chat
 
 stop-web-chat: ## Stop web-chat service
 	@echo "$(YELLOW)==> Stopping web-chat service...$(NC)"
-	@docker compose stop web-chat
+	@docker-compose stop web-chat
 
 restart-web-chat: ## Restart web-chat service
 	@echo "$(YELLOW)==> Restarting web-chat service...$(NC)"
-	@docker compose restart web-chat
+	@docker-compose restart web-chat
 
 ##@ Database Operations
 
 start-mongo: ## Start MongoDB only
 	@echo "$(GREEN)==> Starting MongoDB...$(NC)"
-	@docker compose up -d mongo
-	@docker compose ps mongo
+	@docker-compose up -d mongo
+	@docker-compose ps mongo
 
 stop-mongo: ## Stop MongoDB
 	@echo "$(YELLOW)==> Stopping MongoDB...$(NC)"
-	@docker compose stop mongo
+	@docker-compose stop mongo
 
 mongo-shell: ## Connect to MongoDB shell
 	@echo "$(BLUE)==> Connecting to MongoDB shell...$(NC)"
-	@docker compose exec mongo mongosh llm_service
+	@docker-compose exec mongo mongosh llm_service
 
 mongo-backup: ## Backup MongoDB database
 	@echo "$(BLUE)==> Backing up MongoDB...$(NC)"
 	@mkdir -p ./backups
-	@docker compose exec -T mongo mongodump --db=llm_service --archive > ./backups/llm_service_$$(date +%Y%m%d_%H%M%S).archive
+	@docker-compose exec -T mongo mongodump --db=llm_service --archive > ./backups/llm_service_$$(date +%Y%m%d_%H%M%S).archive
 	@echo "$(GREEN)==> Backup saved to ./backups/$(NC)"
 
 mongo-restore: ## Restore MongoDB from latest backup (requires BACKUP_FILE env var)
@@ -138,49 +138,49 @@ mongo-restore: ## Restore MongoDB from latest backup (requires BACKUP_FILE env v
 		exit 1; \
 	fi
 	@echo "$(BLUE)==> Restoring MongoDB from $(BACKUP_FILE)...$(NC)"
-	@docker compose exec -T mongo mongorestore --db=llm_service --archive < $(BACKUP_FILE)
+	@docker-compose exec -T mongo mongorestore --db=llm_service --archive < $(BACKUP_FILE)
 	@echo "$(GREEN)==> Restore complete!$(NC)"
 
 start-redis: ## Start Redis only
 	@echo "$(GREEN)==> Starting Redis...$(NC)"
-	@docker compose up -d redis
-	@docker compose ps redis
+	@docker-compose up -d redis
+	@docker-compose ps redis
 
 stop-redis: ## Stop Redis
 	@echo "$(YELLOW)==> Stopping Redis...$(NC)"
-	@docker compose stop redis
+	@docker-compose stop redis
 
 redis-cli: ## Connect to Redis CLI
 	@echo "$(BLUE)==> Connecting to Redis CLI...$(NC)"
-	@docker compose exec redis redis-cli
+	@docker-compose exec redis redis-cli
 
 redis-flush: ## Flush all Redis cache
 	@echo "$(RED)==> Flushing Redis cache...$(NC)"
-	@docker compose exec redis redis-cli FLUSHALL
+	@docker-compose exec redis redis-cli FLUSHALL
 	@echo "$(GREEN)==> Cache cleared!$(NC)"
 
 ##@ Logs and Monitoring
 
 logs: ## Show logs for all services
-	@docker compose logs -f
+	@docker-compose logs -f
 
 logs-gateway: ## Show logs for gateway service
-	@docker compose logs -f gateway
+	@docker-compose logs -f gateway
 
 logs-app-server: ## Show logs for app-server service
-	@docker compose logs -f app-server
+	@docker-compose logs -f app-server
 
 logs-playground: ## Show logs for playground service
-	@docker compose logs -f playground
+	@docker-compose logs -f playground
 
 logs-web-chat: ## Show logs for web-chat service
-	@docker compose logs -f web-chat
+	@docker-compose logs -f web-chat
 
 logs-mongo: ## Show logs for MongoDB
-	@docker compose logs -f mongo
+	@docker-compose logs -f mongo
 
 logs-redis: ## Show logs for Redis
-	@docker compose logs -f redis
+	@docker-compose logs -f redis
 
 ##@ Development
 
@@ -237,7 +237,7 @@ clean: ## Remove all containers, volumes, and build artifacts
 	@echo "$(RED)==> WARNING: This will remove all containers, volumes, and data!$(NC)"
 	@echo "$(RED)==> Press Ctrl+C to cancel, or wait 5 seconds to continue...$(NC)"
 	@sleep 5
-	@docker compose down -v
+	@docker-compose down -v
 	@rm -rf gateway/__pycache__ gateway/.pytest_cache
 	@rm -rf app-server/.next app-server/node_modules
 	@rm -rf playground/.next playground/node_modules
@@ -259,10 +259,10 @@ quickstart: ## Quick start: build and run entire stack
 	@echo "$(GREEN)=====================================$(NC)"
 	@echo ""
 	@echo "$(BLUE)==> Building services...$(NC)"
-	@docker compose build
+	@docker-compose build
 	@echo ""
 	@echo "$(BLUE)==> Starting services...$(NC)"
-	@docker compose up -d
+	@docker-compose up -d
 	@echo ""
 	@sleep 3
 	@make status
@@ -292,10 +292,10 @@ health: ## Check health of all services
 	@curl -s http://localhost:8000/ | jq '.' || echo "$(RED)Gateway not responding$(NC)"
 	@echo ""
 	@echo "$(YELLOW)MongoDB:$(NC)"
-	@docker compose exec mongo mongosh --eval "db.adminCommand('ping')" --quiet || echo "$(RED)MongoDB not responding$(NC)"
+	@docker-compose exec mongo mongosh --eval "db.adminCommand('ping')" --quiet || echo "$(RED)MongoDB not responding$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Redis:$(NC)"
-	@docker compose exec redis redis-cli ping || echo "$(RED)Redis not responding$(NC)"
+	@docker-compose exec redis redis-cli ping || echo "$(RED)Redis not responding$(NC)"
 
 urls: ## Show URLs for all services
 	@echo "$(BLUE)Service URLs:$(NC)"
