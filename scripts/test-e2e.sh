@@ -83,8 +83,38 @@ else
 fi
 echo ""
 
-# Step 5: Send a chat completion (this will test authentication and LLM routing)
-echo -e "${YELLOW}Step 5: Sending chat completion request...${NC}"
+# Step 5: Test prompt enhancement (Stage 2: Smart Prompts)
+echo -e "${YELLOW}Step 5: Testing prompt enhancement...${NC}"
+ENHANCE_RESPONSE=$(curl -s -X POST "http://localhost:8000/v1/prompts/enhance" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "system": "You are a helpful assistant.",
+    "user": "Write code",
+    "context": {"model": "gpt-3.5-turbo"}
+  }')
+
+# Check if we got a valid enhancement response
+if echo "$ENHANCE_RESPONSE" | jq -e '.enhanced.user' > /dev/null 2>&1; then
+    ENHANCED_USER=$(echo $ENHANCE_RESPONSE | jq -r '.enhanced.user')
+    DETECTED_INTENT=$(echo $ENHANCE_RESPONSE | jq -r '.detected_intent')
+    IMPROVEMENTS_COUNT=$(echo $ENHANCE_RESPONSE | jq -r '.improvements | length')
+    echo -e "${GREEN}✓ Prompt enhancement successful${NC}"
+    echo -e "${BLUE}Intent detected: $DETECTED_INTENT${NC}"
+    echo -e "${BLUE}Improvements: $IMPROVEMENTS_COUNT${NC}"
+    echo -e "${BLUE}Enhanced prompt (first 80 chars): ${ENHANCED_USER:0:80}...${NC}"
+else
+    echo -e "${RED}✗ Prompt enhancement failed${NC}"
+    echo "Response: $ENHANCE_RESPONSE"
+
+    # Check if it's an API key error
+    if echo "$ENHANCE_RESPONSE" | jq -e '.detail' | grep -q "API key"; then
+        echo -e "${YELLOW}This may be due to missing OpenAI API keys in gateway/.env${NC}"
+    fi
+fi
+echo ""
+
+# Step 6: Send a chat completion (this will test authentication and LLM routing)
+echo -e "${YELLOW}Step 6: Sending chat completion request...${NC}"
 echo -e "${BLUE}Note: This will use your OpenAI/Anthropic API key${NC}"
 
 CHAT_RESPONSE=$(curl -s -X POST "$API_URL/gateway" \
@@ -113,8 +143,8 @@ else
 fi
 echo ""
 
-# Step 6: Verify messages were stored
-echo -e "${YELLOW}Step 6: Verifying messages were stored...${NC}"
+# Step 7: Verify messages were stored
+echo -e "${YELLOW}Step 7: Verifying messages were stored...${NC}"
 MESSAGES_RESPONSE=$(curl -s "$API_URL/messages?sessionId=$SESSION_ID")
 
 MESSAGE_COUNT=$(echo $MESSAGES_RESPONSE | jq -r '.count')
@@ -127,8 +157,8 @@ else
 fi
 echo ""
 
-# Step 7: Verify API key was used
-echo -e "${YELLOW}Step 7: Verifying API key last used timestamp...${NC}"
+# Step 8: Verify API key was used
+echo -e "${YELLOW}Step 8: Verifying API key last used timestamp...${NC}"
 KEYS_RESPONSE=$(curl -s "$API_URL/keys?userId=$USER_ID")
 
 LAST_USED=$(echo $KEYS_RESPONSE | jq -r '.apiKeys[0].lastUsedAt')
@@ -140,8 +170,8 @@ else
 fi
 echo ""
 
-# Step 8: Test MongoDB directly
-echo -e "${YELLOW}Step 8: Verifying data in MongoDB...${NC}"
+# Step 9: Test MongoDB directly
+echo -e "${YELLOW}Step 9: Verifying data in MongoDB...${NC}"
 if command -v docker-compose &> /dev/null; then
     USER_COUNT=$(docker-compose exec -T mongo mongosh llm_service --quiet --eval "db.users.countDocuments()" 2>/dev/null | tail -1)
     SESSION_COUNT=$(docker-compose exec -T mongo mongosh llm_service --quiet --eval "db.sessions.countDocuments()" 2>/dev/null | tail -1)
