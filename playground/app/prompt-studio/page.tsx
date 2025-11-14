@@ -445,18 +445,18 @@ export default function PromptStudioPage() {
     setMatchedTemplates([]);
   };
 
-  // Auto-match templates when user types
-  useEffect(() => {
-    const debounceTimer = setTimeout(() => {
-      if (userMessage.trim().length > 20) {
-        handleMatchTemplates();
-      } else {
-        setMatchedTemplates([]);
-      }
-    }, 1000);
-
-    return () => clearTimeout(debounceTimer);
-  }, [userMessage]);
+  // Auto-match disabled - use explicit button instead
+  // useEffect(() => {
+  //   const debounceTimer = setTimeout(() => {
+  //     if (userMessage.trim().length > 20) {
+  //       handleMatchTemplates();
+  //     } else {
+  //       setMatchedTemplates([]);
+  //     }
+  //   }, 1000);
+  //
+  //   return () => clearTimeout(debounceTimer);
+  // }, [userMessage]);
 
   const getCurlCommand = () => {
     const messages: Message[] = [];
@@ -604,7 +604,16 @@ export default function PromptStudioPage() {
                       }
                     }}
                   />
-                  <p className="text-xs text-gray-700 mt-2 font-semibold">⌘/Ctrl+Enter to submit</p>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-xs text-gray-700 font-semibold">⌘/Ctrl+Enter to submit</p>
+                    <button
+                      onClick={handleMatchTemplates}
+                      disabled={matchingTemplates || userMessage.trim().length < 20}
+                      className="px-4 py-2 bg-purple-600 text-white text-sm font-semibold rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {matchingTemplates ? 'Finding Templates...' : '🔍 Find Matching Templates'}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Experimental: Recursive Enhancement Controls */}
