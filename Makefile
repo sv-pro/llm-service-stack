@@ -163,6 +163,24 @@ migrate-create: ## Create a new migration (usage: make migrate-create MSG="descr
 	@cd gateway && python migrate.py revision "$(MSG)"
 	@echo "$(GREEN)==> Migration file created!$(NC)"
 
+start-postgres: ## Start PostgreSQL only
+	@echo "$(GREEN)==> Starting PostgreSQL...$(NC)"
+	@docker-compose up -d postgres
+	@docker-compose ps postgres
+
+stop-postgres: ## Stop PostgreSQL
+	@echo "$(YELLOW)==> Stopping PostgreSQL...$(NC)"
+	@docker-compose stop postgres
+
+postgres-shell: ## Connect to PostgreSQL shell
+	@echo "$(BLUE)==> Connecting to PostgreSQL shell...$(NC)"
+	@docker-compose exec postgres psql -U llm_user -d llm_templates
+
+seed-templates: ## Seed template library with starter templates
+	@echo "$(BLUE)==> Seeding template library...$(NC)"
+	@docker-compose exec gateway python seed_templates.py
+	@echo "$(GREEN)==> Template library seeded!$(NC)"
+
 start-redis: ## Start Redis only
 	@echo "$(GREEN)==> Starting Redis...$(NC)"
 	@docker-compose up -d redis
