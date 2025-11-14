@@ -334,7 +334,7 @@ export default function PromptStudioPage() {
         body: JSON.stringify({
           prompt: userMessage,
           top_k: 5,
-          min_similarity: 0.7,
+          min_similarity: 0.6,  // Lowered from 0.7 to catch more relevant matches
         }),
       });
 

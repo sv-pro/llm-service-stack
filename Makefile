@@ -181,6 +181,14 @@ seed-templates: ## Seed template library with starter templates
 	@docker-compose exec gateway python seed_templates.py
 	@echo "$(GREEN)==> Template library seeded!$(NC)"
 
+clean-templates: ## Delete all templates from PostgreSQL
+	@echo "$(YELLOW)==> Cleaning template library...$(NC)"
+	@docker-compose exec postgres psql -U llm_user -d llm_templates -c "DELETE FROM templates; DELETE FROM template_usage;"
+	@echo "$(GREEN)==> Template library cleaned!$(NC)"
+
+reseed-templates: clean-templates seed-templates ## Clean and reseed templates
+	@echo "$(GREEN)==> Templates reseeded successfully!$(NC)"
+
 list-templates: ## List all templates in PostgreSQL
 	@echo "$(BLUE)==> Templates in library:$(NC)"
 	@docker-compose exec postgres psql -U llm_user -d llm_templates -c "SELECT id, name, category, usage_count, ROUND(CAST(success_rate AS numeric), 2) as success_rate FROM templates ORDER BY usage_count DESC;"
