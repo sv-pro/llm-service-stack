@@ -473,32 +473,44 @@ export default function PromptStudioPage() {
                   </div>
 
                   {recursiveEnabled && (
-                    <div className="ml-6 space-y-2 mt-2">
-                      <div className="flex items-center gap-3">
-                        <label className="text-xs font-semibold text-blue-800 w-32">Max Iterations:</label>
+                    <div className="ml-6 space-y-3 mt-2">
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-semibold text-blue-800">Max Iterations:</label>
+                          <span className="text-sm font-bold text-blue-900 bg-blue-100 px-2 py-0.5 rounded">{maxIterations}</span>
+                        </div>
                         <input
-                          type="number"
+                          type="range"
                           min="2"
                           max="10"
                           value={maxIterations}
                           onChange={(e) => setMaxIterations(parseInt(e.target.value))}
-                          className="w-16 px-2 py-1 text-sm border border-blue-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                         />
-                        <span className="text-xs text-blue-600">(2-10)</span>
+                        <div className="flex justify-between text-xs text-blue-600">
+                          <span>2</span>
+                          <span>10</span>
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-3">
-                        <label className="text-xs font-semibold text-blue-800 w-32">Similarity Threshold:</label>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-semibold text-blue-800">Similarity Threshold:</label>
+                          <span className="text-sm font-bold text-blue-900 bg-blue-100 px-2 py-0.5 rounded">{similarityThreshold.toFixed(2)}</span>
+                        </div>
                         <input
-                          type="number"
-                          min="0.8"
+                          type="range"
+                          min="0.80"
                           max="0.99"
                           step="0.01"
                           value={similarityThreshold}
                           onChange={(e) => setSimilarityThreshold(parseFloat(e.target.value))}
-                          className="w-16 px-2 py-1 text-sm border border-blue-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                         />
-                        <span className="text-xs text-blue-600">(0.8-0.99)</span>
+                        <div className="flex justify-between text-xs text-blue-600">
+                          <span>0.80</span>
+                          <span>0.99</span>
+                        </div>
                       </div>
 
                       <p className="text-xs text-blue-700 mt-1">
