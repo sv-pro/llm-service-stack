@@ -2,6 +2,7 @@
 
 import asyncio
 import sys
+import hashlib
 from pathlib import Path
 
 # Add parent directory to path
@@ -9,7 +10,6 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from app.pg_database import postgres_conn
 from app.template_store import template_store, Template
-import uuid
 
 
 SEED_TEMPLATES = [
@@ -161,18 +161,38 @@ SEED_TEMPLATES = [
 ]
 
 
+def generate_deterministic_id(name: str) -> str:
+    """
+    Generate a deterministic UUID from template name.
+    This ensures the same template always gets the same ID,
+    making the seed script idempotent.
+    """
+    # Use SHA256 hash of name to create deterministic UUID
+    hash_bytes = hashlib.sha256(name.encode()).digest()[:16]
+    # Format as UUID string
+    return '-'.join([
+        hash_bytes[0:4].hex(),
+        hash_bytes[4:6].hex(),
+        hash_bytes[6:8].hex(),
+        hash_bytes[8:10].hex(),
+        hash_bytes[10:16].hex()
+    ])
+
+
 async def seed_templates():
-    """Seed database with starter templates."""
+    """Seed database with starter templates (idempotent)."""
     try:
         # Connect to PostgreSQL
         await postgres_conn.connect()
         await postgres_conn.init_tables()
 
         print("Seeding templates...")
+        print("(Re-running this script will update existing templates)")
+        print()
 
         for template_data in SEED_TEMPLATES:
             template = Template(
-                id=str(uuid.uuid4()),
+                id=generate_deterministic_id(template_data["name"]),
                 name=template_data["name"],
                 description=template_data["description"],
                 system_template=template_data["system_template"],
@@ -186,7 +206,7 @@ async def seed_templates():
             )
 
             template_id = await template_store.save(template)
-            print(f"  ✓ Created: {template.name} ({template_id})")
+            print(f"  ✓ Saved: {template.name} ({template_id})")
 
         print(f"\n✅ Successfully seeded {len(SEED_TEMPLATES)} templates")
 
