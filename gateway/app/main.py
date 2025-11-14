@@ -1059,8 +1059,12 @@ async def extract_arguments(request: ExtractArgsRequest):
         if not template:
             raise HTTPException(status_code=404, detail="Template not found")
 
+        # Parse argument schemas from JSON strings
+        required_args = json.loads(template.required_args) if isinstance(template.required_args, str) else template.required_args
+        optional_args = json.loads(template.optional_args) if isinstance(template.optional_args, str) else template.optional_args
+
         # Build extraction prompt
-        all_args = template.required_args + template.optional_args
+        all_args = required_args + optional_args
         args_description = json.dumps(all_args, indent=2)
 
         extraction_prompt = f"""Extract argument values from the user's request based on this template.
@@ -1104,7 +1108,7 @@ Example output:
 
         # Validate required arguments
         missing = []
-        for arg in template.required_args:
+        for arg in required_args:
             if arg["name"] not in extracted or extracted[arg["name"]] is None:
                 missing.append(arg["name"])
 
