@@ -14,19 +14,21 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   const isUser = message.role === 'user';
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-5`}>
       <div
-        className={`max-w-[70%] rounded-lg px-4 py-2 ${
+        className={`max-w-[70%] rounded-xl px-5 py-3 shadow-md ${
           isUser
-            ? 'bg-blue-600 text-white'
-            : 'bg-gray-200 text-gray-900'
+            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white'
+            : 'bg-white text-gray-900 border-2 border-gray-200'
         }`}
       >
-        <div className="text-xs font-semibold mb-1">
-          {isUser ? 'You' : 'Assistant'}
+        <div className={`text-xs font-bold mb-2 ${isUser ? 'text-blue-100' : 'text-gray-700'}`}>
+          {isUser ? '👤 You' : '🤖 Assistant'}
         </div>
-        <div className="text-sm whitespace-pre-wrap">{message.content}</div>
-        <div className="text-xs opacity-70 mt-1">
+        <div className={`text-sm whitespace-pre-wrap leading-relaxed ${isUser ? 'font-medium' : 'font-normal text-gray-900'}`}>
+          {message.content}
+        </div>
+        <div className={`text-xs mt-2 font-medium ${isUser ? 'text-blue-200' : 'text-gray-500'}`}>
           {new Date(message.timestamp).toLocaleTimeString()}
         </div>
       </div>

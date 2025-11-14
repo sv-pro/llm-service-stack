@@ -1,0 +1,148 @@
+.budget-gauge h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  color: #111827;
+}
+
+.gauge-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.gauge-svg {
+  width: 200px;
+  height: 200px;
+}
+
+.gauge-progress {
+  transition: stroke-dashoffset 0.5s ease, stroke 0.3s ease;
+}
+
+.gauge-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  fill: #111827;
+}
+
+.gauge-label {
+  font-size: 0.875rem;
+  fill: #6b7280;
+}
+
+.budget-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.stat-row:last-child {
+  border-bottom: none;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.stat-value.remaining {
+  color: #10b981;
+}
+
+.budget-events {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #e5e7eb;
+}
+
+.budget-events h4 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.budget-event {
+  padding: 0.75rem;
+  background: #f9fafb;
+  border-radius: 0.375rem;
+  border-left: 3px solid #10b981;
+}
+
+.budget-event.budget_guardrail {
+  border-left-color: #ef4444;
+  background: #fee2e2;
+}
+
+.event-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.event-tool {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.event-amount {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.event-warning {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #dc2626;
+  font-weight: 500;
+}
+
+.budget-warning {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 0.375rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.warning-icon {
+  font-size: 1.25rem;
+}
+
+.warning-text {
+  font-size: 0.875rem;
+  color: #92400e;
+  font-weight: 600;
+}

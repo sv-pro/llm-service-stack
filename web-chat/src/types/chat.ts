@@ -15,6 +15,21 @@ export interface ChatSession {
   createdAt: Date;
 }
 
+export type ModelVendor = 'openai' | 'anthropic' | 'ollama';
+export type ModelType = 'simple' | 'reasoning';
+export type ModelEndpoint = 'chat' | 'messages';
+
+export interface ModelInfo {
+  id: string;
+  object: string;
+  owned_by: string;
+  vendor: ModelVendor;
+  type: ModelType;
+  endpoint: ModelEndpoint;
+  available: boolean;
+  unavailable_reason?: string | null;
+}
+
 export interface ChatCompletionRequest {
   model: string;
   messages: Array<{

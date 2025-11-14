@@ -14,7 +14,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# Only ignore Python lib directories, not TypeScript/JavaScript lib directories
+gateway/lib/
 lib64/
 parts/
 sdist/

@@ -1,0 +1,243 @@
+.cost-explorer {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.cost-explorer-header {
+  margin-bottom: 2rem;
+}
+
+.cost-explorer-header h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 2rem;
+  color: #333;
+}
+
+.cost-explorer-header .subtitle {
+  margin: 0;
+  color: #666;
+  font-size: 1rem;
+}
+
+/* Summary Cards */
+.cost-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.cost-card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.cost-card-label {
+  font-size: 0.875rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.cost-card-value {
+  font-size: 1.75rem;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 0.25rem;
+}
+
+.cost-card-detail {
+  font-size: 0.875rem;
+  color: #999;
+}
+
+/* Controls */
+.cost-controls {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.control-group label {
+  font-weight: 500;
+  color: #666;
+}
+
+.control-group select {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.control-group select:hover {
+  border-color: #999;
+}
+
+/* Chart Sections */
+.chart-section {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.chart-section h2 {
+  margin: 0 0 1rem 0;
+  font-size: 1.25rem;
+  color: #333;
+}
+
+.charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.chart-section.half {
+  margin-bottom: 0;
+}
+
+.no-data {
+  padding: 3rem;
+  text-align: center;
+  color: #999;
+  font-style: italic;
+}
+
+/* Cost Table */
+.cost-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.cost-table thead {
+  background: #f5f5f5;
+}
+
+.cost-table th {
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: #666;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.cost-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.cost-table tbody tr:hover {
+  background: #f9f9f9;
+}
+
+.cost-table tfoot {
+  background: #f5f5f5;
+  font-weight: bold;
+}
+
+.cost-table tfoot td {
+  border-top: 2px solid #e0e0e0;
+  border-bottom: none;
+}
+
+/* Insights Section */
+.insights-section {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.insights-section h2 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.25rem;
+  color: #333;
+}
+
+.insights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.insight-card {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f9f9f9;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+}
+
+.insight-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.insight-content h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  color: #666;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.insight-content p {
+  margin: 0;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+/* Loading State */
+.loading {
+  padding: 3rem;
+  text-align: center;
+  color: #666;
+  font-size: 1.1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .cost-explorer {
+    padding: 1rem;
+  }
+
+  .charts-row {
+    grid-template-columns: 1fr;
+  }
+
+  .cost-controls {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .control-group {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

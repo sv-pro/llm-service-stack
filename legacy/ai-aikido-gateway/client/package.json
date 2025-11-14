@@ -1,0 +1,16 @@
+{
+  "name": "aikido-gateway-client",
+  "version": "1.0.0",
+  "description": "Simple reference client for AI Aikido Gateway",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["aikido", "gateway", "client", "llm"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

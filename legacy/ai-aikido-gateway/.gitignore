@@ -1,0 +1,102 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+bak/
+aikido-env/
+
+# pyenv
+.python-version
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Playwright artifacts
+playwright-report/
+test-results/
+.cache/ms-playwright/
+
+# Logs
+*.log
+logs/
+gateway.log
+
+# Temporary context files (use docs/project/quick_start/CONTEXT.md instead)
+context.md
+
+# Config (with secrets)
+config/secrets.yaml
+config/local.yaml
+.env.local
+
+# Docker
+.dockerignore
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# API Keys (important!)
+**/api_keys.txt
+**/*_key.txt
+**/*_secret.txt
+.anthropic_key
+.openai_key
+
+# Node.js (for client)
+node_modules/
+client/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+.claude/settings.local.json
+.env.docker
+bak/*
+
+data/redis/dump.rdb

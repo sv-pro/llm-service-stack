@@ -29,7 +29,12 @@ class Settings(BaseSettings):
     # API Keys (for LLM providers)
     OPENAI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""
-    
+
+    # Ollama Configuration
+    OLLAMA_API_BASE: str = "http://localhost:11434"
+    OLLAMA_CHECK_MODELS: str = ""  # Comma-separated list of required models
+    OLLAMA_ENABLED: bool = True  # Auto-detect or explicitly enable/disable
+
     class Config:
         env_file = ".env"
         case_sensitive = True

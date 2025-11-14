@@ -18,7 +18,7 @@ The system follows a layered architecture where the web chat and playground comm
 ```
 web-chat + playground → app-server → gateway → LLM providers (OpenAI, Anthropic, etc.)
                             ↓            ↓
-                        PostgreSQL    Redis + DuckDB
+                         MongoDB     Redis + DuckDB
 ```
 
 ## Technology Stack
@@ -32,6 +32,7 @@ web-chat + playground → app-server → gateway → LLM providers (OpenAI, Anth
 ### App Server (`app-server/`)
 - **Language**: TypeScript
 - **Framework**: Next.js 14 (App Router)
+- **Database**: MongoDB with Mongoose ODM
 - **Purpose**: User management, chat sessions, API key management, gateway proxy
 
 ### Playground (`playground/`)
@@ -46,6 +47,49 @@ web-chat + playground → app-server → gateway → LLM providers (OpenAI, Anth
 - **Purpose**: End-user chat interface
 
 ## Development Commands
+
+### Makefile (Quickest Way)
+
+A comprehensive Makefile is provided for convenient lifecycle management:
+
+```bash
+# Quick start - build and run everything
+make quickstart
+
+# Show all available commands
+make help
+
+# Service management
+make start              # Start all services
+make stop               # Stop all services
+make restart            # Restart all services
+make status             # Show service status
+
+# Individual services
+make start-gateway      # Start only gateway
+make restart-app-server # Restart only app-server
+make logs-playground    # View playground logs
+
+# Database operations
+make mongo-shell        # Connect to MongoDB shell
+make mongo-backup       # Backup database
+make redis-flush        # Clear Redis cache
+
+# Development
+make dev-gateway        # Run gateway locally (no Docker)
+make install            # Install all dependencies
+make test               # Run all tests
+
+# Cleanup
+make clean              # Remove all containers and volumes
+make clean-cache        # Clear all caches
+```
+
+**Most useful commands**:
+- `make quickstart` - One command to build and start everything
+- `make status` - Check health of all services
+- `make logs` - Follow logs for all services
+- `make help` - See all 50+ available commands
 
 ### Docker Compose (Recommended)
 
@@ -121,11 +165,12 @@ npm run lint
 ```
 
 **Key directories**:
-- `app/api/users/` - User management endpoints
-- `app/api/sessions/` - Chat session endpoints
-- `app/api/keys/` - API key management endpoints
+- `app/api/users/` - User management endpoints (fully implemented)
+- `app/api/sessions/` - Chat session endpoints (fully implemented)
+- `app/api/keys/` - API key management endpoints (fully implemented)
 - `app/api/gateway/` - Gateway proxy endpoint
-- `lib/db.ts` - Database utilities (scaffolded)
+- `lib/db.ts` - MongoDB connection utility
+- `lib/models/` - Mongoose models (User, Session, Message, ApiKey)
 
 ### Playground (Next.js)
 
@@ -214,19 +259,32 @@ LITELLM_VERBOSE=false
 ### App Server `.env.local`
 ```env
 GATEWAY_URL=http://localhost:8000
-DATABASE_URL=postgresql://user:password@localhost:5432/llm_service
+MONGODB_URI=mongodb://localhost:27017/llm_service
+
+# Development Mode - Allow localhost requests without API keys
+# Set to 'true' for local development (default in docker-compose)
+# WARNING: Never enable this in production!
+ALLOW_LOCALHOST_BYPASS=true
 ```
 
 ### Playground `.env.local`
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3000/api
+NEXT_PUBLIC_GATEWAY_URL=http://localhost:8000
 ```
 
-### Web Chat `.env`
+### Web Chat `.env` (Optional)
 ```env
 REACT_APP_API_URL=http://localhost:3000/api
-REACT_APP_API_KEY=your_api_key
+
+# API Key is OPTIONAL for localhost development when ALLOW_LOCALHOST_BYPASS=true
+# Leave empty for local development without authentication
+# For production or explicit API key requirement, generate one with:
+#   bash scripts/create-demo-api-key.sh
+REACT_APP_API_KEY=
 ```
+
+**Note on API Keys**: When `ALLOW_LOCALHOST_BYPASS=true` is set in the app-server, requests from localhost automatically bypass API key validation. This makes local development much easier - just start all services with `make quickstart` and the web-chat works immediately without any API key configuration. For production, always disable this and require proper API keys.
 
 ## Key Architecture Patterns
 
@@ -242,6 +300,82 @@ The gateway implements OpenAI-compatible endpoints (`/v1/chat/completions`, `/v1
 ### Multi-Provider Routing
 LiteLLM handles routing to different providers (OpenAI, Anthropic, etc.) based on the model name in the request. No provider-specific code is needed in the application layer.
 
+### API Key Management & Localhost Bypass
+The app-server gateway proxy handles API key authentication for web-chat and other clients. Two modes are supported:
+
+**Development Mode (Localhost Bypass)**:
+- Set `ALLOW_LOCALHOST_BYPASS=true` in app-server (enabled by default in docker-compose)
+- Requests from localhost automatically bypass API key validation
+- A "dev@localhost" user is auto-created for usage tracking
+- Perfect for local development - no API key configuration needed
+- The web-chat works immediately after `make quickstart`
+
+**Production Mode (API Key Required)**:
+- Set `ALLOW_LOCALHOST_BYPASS=false` or leave unset
+- All requests must include a valid API key in the `Authorization: Bearer <key>` header
+- API keys are hashed with bcrypt and stored in MongoDB
+- Generate API keys with: `bash scripts/create-demo-api-key.sh`
+
+**Security Notes**:
+- Localhost bypass checks `X-Forwarded-For` header and `Host` header
+- Only truly local requests (127.0.0.1, ::1, localhost) are allowed
+- **Never enable localhost bypass in production environments**
+- For production, always use proper API key authentication
+
+**Creating API Keys**:
+```bash
+# Generate a new API key for the web-chat
+bash scripts/create-demo-api-key.sh
+
+# Output will show the API key (only displayed once!)
+# Add to web-chat/.env.local:
+echo 'REACT_APP_API_KEY=sk_...' > web-chat/.env.local
+
+# Restart web-chat to pick up the new key
+make restart-web-chat
+```
+
+### Ollama Support (Local Models)
+The gateway includes built-in support for Ollama, enabling you to run LLMs locally without API costs.
+
+**Features**:
+- Automatic detection of Ollama installation on startup
+- Health checks for required models
+- Seamless integration with LiteLLM routing
+- Cost-free local inference
+
+**Setup**:
+1. Install Ollama: https://ollama.ai
+2. Start Ollama: `ollama serve`
+3. Pull models: `ollama pull llama2`, `ollama pull codellama`, etc.
+4. Configure in `gateway/.env`:
+   ```env
+   OLLAMA_API_BASE=http://localhost:11434
+   OLLAMA_CHECK_MODELS=llama2,codellama
+   OLLAMA_ENABLED=true
+   ```
+
+**Usage**:
+```bash
+# List available models (includes Ollama models if running)
+curl http://localhost:8000/v1/models
+
+# Use Ollama model via gateway
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "ollama/llama2",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+
+**Startup Checks**:
+When the gateway starts, it automatically:
+- Checks if Ollama is accessible
+- Lists installed models
+- Validates required models (if specified)
+- Provides installation commands if models are missing
+
 ## Common Development Tasks
 
 ### Adding a New LLM Provider
@@ -253,12 +387,67 @@ LiteLLM handles routing to different providers (OpenAI, Anthropic, etc.) based o
 - **Gateway**: Add route to `gateway/app/main.py`
 - **App Server**: Create new route in `app-server/app/api/[endpoint]/route.ts`
 
-### Implementing Database Schema
-The app-server has placeholder database functions in `lib/db.ts`. To implement:
-1. Choose database solution (PostgreSQL recommended)
-2. Add migration tool (Prisma, Drizzle, or raw SQL)
-3. Implement schema for users, sessions, and API keys
-4. Update API routes to use real database queries
+### Database Schema (MongoDB)
+The app-server uses MongoDB with Mongoose ODM. Schema is fully implemented in `lib/models/`:
+
+**Models**:
+- `User` - User accounts with email and name
+- `Session` - Chat sessions linked to users
+- `Message` - Individual messages within sessions
+- `ApiKey` - Hashed API keys for authentication
+
+**Key Features**:
+- Automatic timestamps (createdAt, updatedAt)
+- Indexes for performance optimization
+- Cascading deletes for related data
+- bcrypt hashing for API keys
+
+All CRUD operations are implemented in the API routes with proper validation and error handling.
+
+### Database Migrations (Gateway SQLite)
+
+The gateway uses SQLite/DuckDB for tracking usage logs and storing enhanced prompts. Database schema changes are managed with **Alembic** migrations.
+
+**Migration Commands**:
+```bash
+# Run all pending migrations (automatic on gateway startup)
+make migrate
+
+# Check current migration version
+make migrate-status
+
+# View migration history
+make migrate-history
+
+# Create a new migration
+make migrate-create MSG="add new columns"
+
+# Manual migration (from gateway/ directory)
+cd gateway
+python migrate.py upgrade    # Upgrade to latest
+python migrate.py downgrade  # Downgrade one version
+python migrate.py current    # Show current version
+python migrate.py history    # Show history
+```
+
+**How It Works**:
+1. Migrations run automatically on gateway startup via `init_db()`
+2. Migration files are stored in `gateway/alembic/versions/`
+3. Schema changes are tracked in the `alembic_version` table
+4. Safe to run multiple times - migrations are idempotent
+
+**Creating a New Migration**:
+1. Modify models in `gateway/app/models.py`
+2. Run: `make migrate-create MSG="description of changes"`
+3. Review generated migration in `gateway/alembic/versions/`
+4. Test migration: `cd gateway && python migrate.py upgrade`
+5. Restart gateway - migration runs automatically
+
+**Troubleshooting**:
+- If you see "table X has no column Y" errors, migrations haven't run
+- Delete `gateway/usage_logs.db` to start fresh (development only)
+- Check migration status: `make migrate-status`
+- Migrations are automatically applied on Docker container startup
 
 ### Adding Authentication
 Current implementation is scaffolded without authentication. To add:
@@ -275,24 +464,47 @@ Default ports:
 - Playground: 3001 (or set via `PORT` env var)
 - Web Chat: 3002 (or 3000 for standalone)
 - Redis: 6379
-- PostgreSQL: 5432
+- MongoDB: 27017
 
 To change Next.js ports: `PORT=4000 npm run dev`
 
 ## Troubleshooting
 
-### Gateway won't start
-- Verify Python 3.9+ is installed
-- Check API keys are set in `.env`
-- Ensure Redis is running if using cache
-- Run `pip install -r requirements.txt`
+For comprehensive troubleshooting guidance, see **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)**.
 
-### Next.js services won't start
-- Delete `node_modules` and reinstall: `rm -rf node_modules && npm install`
-- Check port conflicts: `lsof -ti:3000 | xargs kill -9`
-- Clear Next.js cache: `rm -rf .next`
+This guide covers:
+- **Gateway issues**: numpy dependencies, API key configuration, JSON serialization errors
+- **Playground/Frontend issues**: cached builds, CORS headers, source badges
+- **Caching issues**: semantic cache, Redis connections, TTL configuration
+- **Docker & Environment**: environment variables, container startup, port conflicts
+- **CORS issues**: cross-origin requests, header exposure
+- **General debugging**: verbose logging, database inspection, clean slate procedures
 
-### Docker services fail
-- Check logs: `docker-compose logs [service-name]`
-- Rebuild: `docker-compose build --no-cache`
-- Verify environment variables in `.env`
+### Quick fixes for common issues:
+
+**Gateway won't start:**
+```bash
+docker compose logs gateway
+docker compose build --no-cache gateway
+```
+
+**Playground shows old UI:**
+```bash
+docker compose restart playground
+# Hard refresh browser: Ctrl+Shift+R
+```
+
+**Cache not working:**
+```bash
+docker compose exec redis redis-cli FLUSHALL
+docker compose restart gateway
+```
+
+**Environment variables missing:**
+```bash
+# Verify .env exists in project root
+ls -la .env
+
+# Restart services
+docker compose down && docker compose up -d
+```

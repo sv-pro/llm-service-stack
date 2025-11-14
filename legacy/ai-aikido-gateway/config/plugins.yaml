@@ -1,0 +1,247 @@
+# AI Aikido Gateway - Plugin Configuration
+#
+# This file defines which plugins are enabled and their configurations.
+# Plugins are executed in priority order (lower number = higher priority).
+#
+# Environment variables can be referenced using ${VAR_NAME} syntax.
+
+plugins:
+  # Example: Logging Plugin (for demonstration)
+  # Simple logging plugin to show plugin system in action
+  - name: example_logger
+    enabled: true
+    priority: 1
+    class: src.plugins.example.ExampleLoggerPlugin
+    config:
+      log_level: INFO
+
+  # Normalization Plugin - Phase 5
+  # Normalizes requests for consistent caching and routing
+  - name: normalization
+    enabled: true
+    priority: 4  # Run before all caches
+    class: src.plugins.normalization.NormalizationPlugin
+    config:
+      rules:
+        - trim_system_prompt
+        - standardize_whitespace
+        - canonicalize_tools
+        - normalize_temperature
+
+  # Request History Plugin - Stores all requests for analysis
+  # FOUNDATION for cost tracking, analytics, and dashboard
+  - name: history
+    enabled: true
+    priority: 100  # Run last to capture complete request/response
+    class: src.plugins.history.RequestHistoryPlugin
+    config:
+      db_path: ./data/history.db
+
+  # Transparency Plugin - Optional developer headers
+  # Shows what normalizations the gateway applied
+  # Enable this for development/debugging, disable for production
+  - name: transparency
+    enabled: true  # Set to false to disable transparency headers
+    priority: 90   # Run near end, before history
+    class: src.plugins.transparency.TransparencyPlugin
+    config:
+      show_normalizations: true  # Show parameter changes
+      show_model: true           # Show original model requested
+      show_latency: true         # Show request latency
+      show_cache_status: true    # Show cache hit/miss status
+      custom_prefix: X-Gateway   # Custom header prefix
+
+  # Intelligent Response Cache - Phase 4.2
+  # Persists responses to reduce duplicate LLM calls
+  - name: cache
+    enabled: true
+    priority: 5  # After normalization
+    class: src.plugins.cache.CachePlugin
+    config:
+      backend: sqlite          # Options: sqlite, memory
+      db_path: ./data/cache.db
+      default_ttl_seconds: 3600
+      model_ttl_seconds:
+        gpt-5: 900
+        gpt-5-mini: 900
+        gpt-5-nano: 900
+        gpt-4: 1800
+        gpt-4-turbo: 1800
+        gpt-4o: 1200
+        gpt-3.5-turbo: 2400
+      max_memory_entries: 500   # Optional in-memory hot cache
+      max_storage_entries: 5000
+      track_savings: true       # Calculates avoided_cost per hit
+
+  # Semantic Cache Plugin - Phase 5
+  # Embedding-based similarity matching for better cache reuse
+  - name: semantic_cache
+    enabled: true  # Set to true and configure API key to enable
+    priority: 6     # After verbatim cache
+    class: src.plugins.semantic_cache.SemanticCachePlugin
+    config:
+      # Embedding provider options: "openai" or "sentence_transformers"
+      # OpenAI Configuration (default):
+      # embedding_provider: openai
+      # embedding_api_key: ${OPENAI_API_KEY}  # Can use same key as proxy
+      # embedding_model: text-embedding-ada-002
+
+      # On-Premise Configuration (ACTIVE - faster & $0 cost):
+      embedding_provider: sentence_transformers
+      embedding_service_url: http://embeddings:8001  # Use service name in Docker
+      embedding_model: all-MiniLM-L6-v2
+
+      # Cache backend options: "faiss", "qdrant", or "auto"
+      cache_backend: qdrant
+      fallback_backend: faiss  # Fallback if Qdrant unavailable locally
+
+      # Qdrant Configuration
+      qdrant_host: ${QDRANT_HOST:-qdrant}
+      qdrant_port: ${QDRANT_PORT:-6333}
+      qdrant_collection: semantic_cache
+
+      similarity_threshold: 0.85  # 0.0-1.0, higher = stricter matching
+      max_cache_entries: 10000
+      ttl_seconds: 3600
+      search_candidate_limit: 5    # number of vectors to inspect before declaring miss
+      fallback_to_verbatim: true  # Skip if verbatim cache already hit
+      metadata_filters:
+        - model  # Match on model name
+      timeseries_db: ./data/semantic_metrics.db
+
+  # OpenAI Proxy Plugin - Phase 5
+  - name: openai_proxy
+    enabled: true
+    priority: 50
+    class: src.plugins.openai_proxy.OpenAIProxyPlugin
+    config:
+      timeout: 60
+      max_retries: 2
+      # api_keys:
+      #   - ${OPENAI_API_KEY}
+      #   - ${OPENAI_API_KEY_BACKUP}
+
+  # Anthropic Proxy Plugin - Phase 5
+  - name: anthropic_proxy
+    enabled: true
+    priority: 50
+    class: src.plugins.anthropic_proxy.AnthropicProxyPlugin
+    config:
+      timeout: 60
+      max_retries: 2
+      # api_keys:
+      #   - ${ANTHROPIC_API_KEY}
+      #   - ${ANTHROPIC_API_KEY_BACKUP}
+  # Cost Monitor Plugin - PRIORITY FEATURE (Phase 3)
+  # Track LLM API costs, analytics, and budgets
+  # NOTE: This plugin will be implemented in Phase 3
+  # - name: cost_monitor
+  #   enabled: true
+  #   priority: 30
+  #   class: src.plugins.cost_monitor.CostMonitorPlugin
+  #   config:
+  #     # Storage backend: sqlite, postgresql, or memory
+  #     storage_backend: sqlite
+  #     db_path: ./data/costs.db
+  #
+  #     # Model pricing (USD per 1M tokens)
+  #     pricing:
+  #       gpt-4:
+  #         prompt: 30.00
+  #         completion: 60.00
+  #       gpt-4-turbo:
+  #         prompt: 10.00
+  #         completion: 30.00
+  #       gpt-3.5-turbo:
+  #         prompt: 0.50
+  #         completion: 1.50
+  #       claude-3-opus-20240229:
+  #         prompt: 15.00
+  #         completion: 75.00
+  #       claude-3-sonnet-20240229:
+  #         prompt: 3.00
+  #         completion: 15.00
+  #       claude-3-haiku-20240307:
+  #         prompt: 0.25
+  #         completion: 1.25
+  #
+  #     # Budget alerts
+  #     alerts:
+  #       daily_budget: 100.00    # USD
+  #       weekly_budget: 500.00   # USD
+  #       monthly_budget: 2000.00 # USD
+  #       email_on_alert: false
+  #       alert_webhook_url: null
+
+  # OpenAI Proxy Plugin (Phase 4)
+  # Proxy requests to OpenAI API
+  # - name: openai_proxy
+  #   enabled: true
+  #   priority: 50
+  #   class: src.plugins.openai_proxy.OpenAIProxyPlugin
+  #   config:
+  #     api_key: ${OPENAI_API_KEY}
+  #     timeout: 60
+  #     max_retries: 3
+
+  # Anthropic Proxy Plugin (Phase 4)
+  # Proxy requests to Anthropic API
+  # - name: anthropic_proxy
+  #   enabled: true
+  #   priority: 50
+  #   class: src.plugins.anthropic_proxy.AnthropicProxyPlugin
+  #   config:
+  #     api_key: ${ANTHROPIC_API_KEY}
+  #     timeout: 60
+  #     max_retries: 3
+
+  # Cache Plugin (Phase 5 - Future)
+  # Cache responses to reduce costs
+  # - name: cache
+  #   enabled: false
+  #   priority: 10
+  #   class: src.plugins.cache.CachePlugin
+  #   config:
+  #     backend: memory  # memory, redis, or database
+  #     ttl: 3600        # Time-to-live in seconds
+  #     max_size: 1000   # Max cache entries (memory backend)
+  #     redis_url: ${REDIS_URL}
+
+  # Router Plugin (Phase 5 - Future)
+  # Intelligent model routing based on request complexity
+  # - name: router
+  #   enabled: false
+  #   priority: 20
+  #   class: src.plugins.router.RouterPlugin
+  #   config:
+  #     classifier_model: claude-3-haiku-20240307
+  #     cheap_model: claude-3-haiku-20240307
+  #     expensive_model: gpt-4-turbo
+  #     complexity_threshold: 50  # 0-100 scale
+  #     routing_rules:
+  #       - pattern: "simple|quick|short"
+  #         model: claude-3-haiku-20240307
+  #       - pattern: "complex|detailed|analyze"
+  #         model: gpt-4-turbo
+
+  # Rate Limiter Plugin (Phase 5 - Future)
+  # Rate limiting per API key or user
+  # - name: rate_limiter
+  #   enabled: false
+  #   priority: 5
+  #   class: src.plugins.rate_limiter.RateLimiterPlugin
+  #   config:
+  #     requests_per_minute: 60
+  #     requests_per_hour: 1000
+  #     requests_per_day: 10000
+  #     backend: memory  # memory or redis
+
+  # Auth Plugin (Phase 5 - Future)
+  # API key authentication and management
+  # - name: auth
+  #   enabled: false
+  #   priority: 1
+  #   class: src.plugins.auth.AuthPlugin
+  #   config:
+  #     api_keys_file: ./config/api_keys.yaml
+  #     require_auth: true
