@@ -12,6 +12,16 @@ from .cache import generate_embedding
 logger = logging.getLogger(__name__)
 
 
+def _format_vector_for_pg(vector: List[float]) -> str:
+    """
+    Format a Python list as a PostgreSQL vector string.
+    pgvector expects format: '[1.0,2.0,3.0]' (no spaces)
+    """
+    if not vector:
+        return None
+    return '[' + ','.join(str(v) for v in vector) + ']'
+
+
 class Template:
     """Template data model."""
 
@@ -142,7 +152,7 @@ class TemplateStore:
                     template.user_template,
                     json.dumps(template.required_args),
                     json.dumps(template.optional_args),
-                    template.embedding,
+                    _format_vector_for_pg(template.embedding),
                     template.keywords,
                     template.usage_count,
                     template.avg_cost,
@@ -229,7 +239,7 @@ class TemplateStore:
                     FROM templates
                     WHERE 1 - (embedding <=> $1::vector) >= $2
                 """
-                params = [embedding, min_similarity]
+                params = [_format_vector_for_pg(embedding), min_similarity]
 
                 if category:
                     query += " AND category = $3"
