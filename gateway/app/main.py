@@ -11,9 +11,11 @@ from datetime import datetime
 from .config import settings
 from .database import init_db, get_db
 from .models import UsageLog, EnhancedPrompt
-from .cache import CacheManager
+from .cache import CacheManager, generate_embedding
 from .cost_tracker import CostTracker
 from .ollama_checker import check_ollama_on_startup, ollama_checker
+from .pg_database import postgres_conn
+from .template_store import template_store, Template
 import uuid
 import json
 
@@ -68,6 +70,22 @@ async def startup_event():
     # Configure Ollama API base if available
     if ollama_checker.available:
         os.environ["OLLAMA_API_BASE"] = settings.OLLAMA_API_BASE
+
+    # Initialize PostgreSQL connection and tables
+    try:
+        await postgres_conn.connect()
+        await postgres_conn.init_tables()
+    except Exception as e:
+        print(f"Warning: Failed to initialize PostgreSQL: {e}")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown."""
+    try:
+        await postgres_conn.disconnect()
+    except Exception as e:
+        print(f"Warning: Failed to disconnect PostgreSQL: {e}")
 
 
 @app.get("/")
@@ -831,6 +849,289 @@ async def enhance_prompt(request: EnhancePromptRequest, db = Depends(get_db)):
         print(f"Error enhancing prompt: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to enhance prompt: {str(e)}")
+
+
+# ============================================================================
+# Stage 3: Template Management & Matching
+# ============================================================================
+
+class TemplateArgument(BaseModel):
+    """Definition of a template argument."""
+    name: str
+    type: str  # 'string' | 'number' | 'enum' | 'array'
+    description: str
+    required: bool = True
+    default: Optional[Any] = None
+    enum_values: Optional[List[str]] = None
+    validation: Optional[str] = None
+
+
+class CreateTemplateRequest(BaseModel):
+    """Request to create a new template."""
+    name: str
+    description: str
+    system_template: str
+    user_template: str
+    required_args: List[TemplateArgument] = []
+    optional_args: List[TemplateArgument] = []
+    keywords: List[str] = []
+    category: str = "general"
+    tags: List[str] = []
+    created_by: Optional[str] = None
+
+
+class MatchTemplatesRequest(BaseModel):
+    """Request to find matching templates."""
+    prompt: str
+    category: Optional[str] = None
+    top_k: int = 5
+    min_similarity: float = 0.7
+
+
+class ExtractArgsRequest(BaseModel):
+    """Request to extract arguments from user prompt."""
+    template_id: str
+    user_prompt: str
+
+
+@app.post("/v1/templates/create")
+async def create_template(request: CreateTemplateRequest):
+    """
+    Stage 3: Create a new template with semantic embedding.
+    Stores template for future matching and reuse.
+    """
+    try:
+        # Create template instance
+        template = Template(
+            id=str(uuid.uuid4()),
+            name=request.name,
+            description=request.description,
+            system_template=request.system_template,
+            user_template=request.user_template,
+            required_args=[arg.dict() for arg in request.required_args],
+            optional_args=[arg.dict() for arg in request.optional_args],
+            keywords=request.keywords,
+            category=request.category,
+            tags=request.tags,
+            created_by=request.created_by,
+        )
+
+        # Save template (embedding generated automatically)
+        template_id = await template_store.save(template)
+
+        return {
+            "id": template_id,
+            "name": template.name,
+            "message": "Template created successfully"
+        }
+
+    except Exception as e:
+        print(f"Error creating template: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create template: {str(e)}")
+
+
+@app.get("/v1/templates")
+async def list_templates(
+    category: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    order_by: str = "usage_count"
+):
+    """
+    Stage 3: List all templates with optional filtering.
+    """
+    try:
+        templates = await template_store.list(
+            category=category,
+            limit=limit,
+            offset=offset,
+            order_by=order_by
+        )
+
+        return {
+            "templates": [t.to_dict() for t in templates],
+            "total": len(templates)
+        }
+
+    except Exception as e:
+        print(f"Error listing templates: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to list templates: {str(e)}")
+
+
+@app.get("/v1/templates/{template_id}")
+async def get_template(template_id: str):
+    """
+    Stage 3: Get a specific template by ID.
+    """
+    try:
+        template = await template_store.get(template_id)
+
+        if not template:
+            raise HTTPException(status_code=404, detail="Template not found")
+
+        return template.to_dict()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting template: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get template: {str(e)}")
+
+
+@app.delete("/v1/templates/{template_id}")
+async def delete_template(template_id: str):
+    """
+    Stage 3: Delete a template by ID.
+    """
+    try:
+        success = await template_store.delete(template_id)
+
+        if not success:
+            raise HTTPException(status_code=404, detail="Template not found")
+
+        return {"message": "Template deleted successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error deleting template: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete template: {str(e)}")
+
+
+@app.post("/v1/templates/match")
+async def match_templates(request: MatchTemplatesRequest):
+    """
+    Stage 3: Find best matching templates using semantic similarity.
+    Returns ranked list with similarity scores and statistics.
+    """
+    try:
+        # Generate embedding for user prompt
+        embedding = await generate_embedding(request.prompt)
+
+        # Semantic search
+        matches = await template_store.find_similar(
+            embedding=embedding,
+            top_k=request.top_k,
+            min_similarity=request.min_similarity,
+            category=request.category
+        )
+
+        # Rank by combined score (similarity + usage stats)
+        def rank_score(match):
+            similarity = match["similarity"]
+            usage_weight = min(match["usage_count"] / 100, 1.0)  # Normalize usage
+            success_rate = match["success_rate"]
+
+            # Weighted ranking: 60% similarity, 20% usage, 20% success rate
+            return (
+                similarity * 0.6 +
+                usage_weight * 0.2 +
+                success_rate * 0.2
+            )
+
+        ranked_matches = sorted(matches, key=rank_score, reverse=True)
+
+        return {
+            "matches": ranked_matches,
+            "query": request.prompt,
+            "total": len(ranked_matches)
+        }
+
+    except Exception as e:
+        print(f"Error matching templates: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to match templates: {str(e)}")
+
+
+# ============================================================================
+# Stage 4: Argument Extraction
+# ============================================================================
+
+@app.post("/v1/templates/extract-args")
+async def extract_arguments(request: ExtractArgsRequest):
+    """
+    Stage 4: Extract argument values from user prompt using LLM.
+    Returns extracted arguments and indicates if any required args are missing.
+    """
+    try:
+        # Get template
+        template = await template_store.get(request.template_id)
+
+        if not template:
+            raise HTTPException(status_code=404, detail="Template not found")
+
+        # Build extraction prompt
+        all_args = template.required_args + template.optional_args
+        args_description = json.dumps(all_args, indent=2)
+
+        extraction_prompt = f"""Extract argument values from the user's request based on this template.
+
+Template: {template.name}
+Description: {template.description}
+
+Arguments to extract:
+{args_description}
+
+User request: "{request.user_prompt}"
+
+Extract all argument values you can identify from the user's request.
+Return JSON with extracted values. Use null for arguments you cannot determine.
+
+Example output:
+{{
+  "language": "python",
+  "focus_areas": ["bugs", "security"],
+  "detail_level": "high"
+}}
+"""
+
+        # Call LLM for extraction
+        response = await litellm.acompletion(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": extraction_prompt}],
+            temperature=0.3,
+        )
+
+        # Parse response
+        content = response.choices[0].message.content.strip()
+
+        # Try to extract JSON from markdown code blocks
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0].strip()
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0].strip()
+
+        extracted = json.loads(content)
+
+        # Validate required arguments
+        missing = []
+        for arg in template.required_args:
+            if arg["name"] not in extracted or extracted[arg["name"]] is None:
+                missing.append(arg["name"])
+
+        if missing:
+            return {
+                "status": "incomplete",
+                "extracted": extracted,
+                "missing": missing,
+                "prompt": f"Please provide the following required arguments: {', '.join(missing)}",
+                "template": template.to_dict()
+            }
+
+        return {
+            "status": "complete",
+            "template_id": template.id,
+            "extracted": extracted,
+            "template": template.to_dict()
+        }
+
+    except json.JSONDecodeError as e:
+        print(f"Error parsing extraction response: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to parse LLM response: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error extracting arguments: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to extract arguments: {str(e)}")
 
 
 if __name__ == "__main__":

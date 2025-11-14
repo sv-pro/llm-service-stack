@@ -29,6 +29,23 @@ services:
       timeout: 3s
       retries: 3
 
+  # PostgreSQL with pgvector (for template storage)
+  postgres:
+    image: ankane/pgvector:latest
+    environment:
+      POSTGRES_DB: llm_templates
+      POSTGRES_USER: llm_user
+      POSTGRES_PASSWORD: llm_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U llm_user -d llm_templates"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
   # Gateway Service (FastAPI)
   gateway:
     build:
@@ -41,11 +58,14 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379
       - DATABASE_URL=duckdb:///./gateway.db
+      - POSTGRES_URL=postgresql://llm_user:llm_password@postgres:5432/llm_templates
     volumes:
       - ./gateway:/app
       - gateway_data:/app/data
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
@@ -102,4 +122,5 @@ services:
 volumes:
   redis_data:
   mongo_data:
+  postgres_data:
   gateway_data:

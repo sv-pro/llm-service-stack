@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "duckdb:///./gateway.db"
     SQLITE_URL: str = "sqlite:///./usage_logs.db"
+    POSTGRES_URL: str = "postgresql://llm_user:llm_password@localhost:5432/llm_templates"
     
     # LiteLLM Configuration
     LITELLM_VERBOSE: bool = False

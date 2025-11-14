@@ -106,6 +106,20 @@ export default function PromptStudioPage() {
   const [maxIterations, setMaxIterations] = useState(5);
   const [similarityThreshold, setSimilarityThreshold] = useState(0.95);
 
+  // Stage 3: Template matching
+  const [matchedTemplates, setMatchedTemplates] = useState<any[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null);
+  const [matchingTemplates, setMatchingTemplates] = useState(false);
+  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [templateDescription, setTemplateDescription] = useState('');
+  const [templateCategory, setTemplateCategory] = useState('general');
+
+  // Stage 4: Argument extraction
+  const [extractedArgs, setExtractedArgs] = useState<any>(null);
+  const [templateArgs, setTemplateArgs] = useState<any>({});
+  const [showArgsForm, setShowArgsForm] = useState(false);
+
   // Load models on mount
   useEffect(() => {
     loadModels();
@@ -307,6 +321,142 @@ export default function PromptStudioPage() {
 
     return promptCost + completionCost;
   };
+
+  // Stage 3: Template Matching
+  const handleMatchTemplates = async () => {
+    if (!userMessage.trim()) return;
+
+    setMatchingTemplates(true);
+    try {
+      const res = await fetch(`${GATEWAY_URL}/v1/templates/match`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: userMessage,
+          top_k: 5,
+          min_similarity: 0.7,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setMatchedTemplates(data.matches || []);
+      }
+    } catch (err) {
+      console.error('Error matching templates:', err);
+    } finally {
+      setMatchingTemplates(false);
+    }
+  };
+
+  const handleSelectTemplate = async (template: any) => {
+    setSelectedTemplate(template);
+    setShowArgsForm(true);
+
+    // Try to extract arguments automatically
+    try {
+      const res = await fetch(`${GATEWAY_URL}/v1/templates/extract-args`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          template_id: template.id,
+          user_prompt: userMessage,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setExtractedArgs(data.extracted);
+        setTemplateArgs(data.extracted || {});
+      }
+    } catch (err) {
+      console.error('Error extracting arguments:', err);
+    }
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!templateName.trim() || !templateDescription.trim()) {
+      setError('Please provide template name and description');
+      return;
+    }
+
+    if (!enhancedPrompt) {
+      setError('No enhanced prompt to save');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${GATEWAY_URL}/v1/templates/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: templateName,
+          description: templateDescription,
+          system_template: enhancedPrompt.system,
+          user_template: enhancedPrompt.user,
+          category: templateCategory,
+          tags: [enhancedPrompt.intent],
+          keywords: [],
+          required_args: [],
+          optional_args: [],
+          created_by: 'user',
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        alert(`Template "${templateName}" saved successfully!`);
+        setShowSaveTemplateModal(false);
+        setTemplateName('');
+        setTemplateDescription('');
+        setTemplateCategory('general');
+      } else {
+        throw new Error('Failed to save template');
+      }
+    } catch (err: any) {
+      console.error('Error saving template:', err);
+      setError(err.message || 'Failed to save template');
+    }
+  };
+
+  const handleExecuteTemplate = () => {
+    if (!selectedTemplate) return;
+
+    // Fill template with arguments
+    let filledSystem = selectedTemplate.system_template;
+    let filledUser = selectedTemplate.user_template;
+
+    Object.keys(templateArgs).forEach((key) => {
+      const value = templateArgs[key];
+      if (value !== null && value !== undefined) {
+        const placeholder = `{${key}}`;
+        filledSystem = filledSystem.replace(new RegExp(placeholder, 'g'), String(value));
+        filledUser = filledUser.replace(new RegExp(placeholder, 'g'), String(value));
+      }
+    });
+
+    // Update prompts
+    setSystemPrompt(filledSystem);
+    setUserMessage(filledUser);
+
+    // Clear template UI
+    setSelectedTemplate(null);
+    setShowArgsForm(false);
+    setMatchedTemplates([]);
+  };
+
+  // Auto-match templates when user types
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      if (userMessage.trim().length > 20) {
+        handleMatchTemplates();
+      } else {
+        setMatchedTemplates([]);
+      }
+    }, 1000);
+
+    return () => clearTimeout(debounceTimer);
+  }, [userMessage]);
 
   const getCurlCommand = () => {
     const messages: Message[] = [];
@@ -637,8 +787,10 @@ export default function PromptStudioPage() {
                       </button>
                       <button
                         onClick={() => {
-                          // TODO: Stage 3 - Save as template
-                          alert('Template saving coming in Stage 3!');
+                          setShowSaveTemplateModal(true);
+                          setTemplateName('');
+                          setTemplateDescription(enhancedPrompt.reasoning || '');
+                          setTemplateCategory(enhancedPrompt.intent || 'general');
                         }}
                         className="flex-1 bg-white text-purple-600 border-2 border-purple-600 px-4 py-2 rounded-lg hover:bg-purple-50 font-semibold transition-colors"
                       >
@@ -917,6 +1069,209 @@ export default function PromptStudioPage() {
             </div>
           </div>
         </div>
+
+        {/* Stage 3: Template Matching UI */}
+        {matchedTemplates.length > 0 && !selectedTemplate && (
+          <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-lg p-6 shadow-lg">
+            <h3 className="text-lg font-bold text-blue-900 mb-4 flex items-center">
+              🔍 Matching Templates Found
+              <span className="ml-2 text-sm bg-blue-200 px-2 py-1 rounded-full">{matchedTemplates.length}</span>
+            </h3>
+            <div className="space-y-3">
+              {matchedTemplates.map((template: any) => (
+                <div
+                  key={template.id}
+                  className="bg-white border-2 border-blue-200 rounded-lg p-4 hover:border-blue-400 hover:shadow-md transition-all cursor-pointer"
+                  onClick={() => handleSelectTemplate(template)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="font-bold text-gray-900 text-lg mb-1">{template.name}</div>
+                      <div className="text-sm text-gray-600 mb-3">{template.description}</div>
+                      <div className="flex items-center gap-3 text-xs">
+                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded font-semibold">
+                          {(template.similarity * 100).toFixed(0)}% match
+                        </span>
+                        <span className="text-gray-600">Used {template.usage_count} times</span>
+                        <span className="text-gray-600">Avg cost: ${template.avg_cost.toFixed(4)}</span>
+                        <span className="bg-green-100 text-green-800 px-2 py-1 rounded font-semibold">
+                          {(template.success_rate * 100).toFixed(0)}% success
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      className="ml-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-semibold transition-colors"
+                    >
+                      Use This →
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Stage 4: Argument Extraction Form */}
+        {showArgsForm && selectedTemplate && (
+          <div className="mt-6 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-6 shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-green-900">
+                📝 Template: {selectedTemplate.name}
+              </h3>
+              <button
+                onClick={() => {
+                  setSelectedTemplate(null);
+                  setShowArgsForm(false);
+                  setExtractedArgs(null);
+                  setTemplateArgs({});
+                }}
+                className="text-gray-600 hover:text-gray-900 font-semibold"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-700 mb-4">{selectedTemplate.description}</p>
+
+            {/* Arguments Form */}
+            <div className="space-y-4">
+              {[...selectedTemplate.required_args, ...selectedTemplate.optional_args].map((arg: any) => (
+                <div key={arg.name} className="bg-white border border-green-200 rounded-lg p-4">
+                  <label className="block text-sm font-bold text-gray-900 mb-2">
+                    {arg.description}
+                    {arg.required && <span className="text-red-600 ml-1">*</span>}
+                  </label>
+
+                  {arg.type === 'enum' && arg.enum_values ? (
+                    <select
+                      value={templateArgs[arg.name] || ''}
+                      onChange={(e) => setTemplateArgs({ ...templateArgs, [arg.name]: e.target.value })}
+                      className="w-full border-2 border-gray-300 rounded-lg p-2 focus:border-green-500 focus:outline-none"
+                    >
+                      <option value="">Select...</option>
+                      {arg.enum_values.map((val: string) => (
+                        <option key={val} value={val}>{val}</option>
+                      ))}
+                    </select>
+                  ) : arg.type === 'number' ? (
+                    <input
+                      type="number"
+                      value={templateArgs[arg.name] || ''}
+                      onChange={(e) => setTemplateArgs({ ...templateArgs, [arg.name]: e.target.value })}
+                      className="w-full border-2 border-gray-300 rounded-lg p-2 focus:border-green-500 focus:outline-none"
+                      placeholder={arg.description}
+                    />
+                  ) : (
+                    <textarea
+                      value={templateArgs[arg.name] || ''}
+                      onChange={(e) => setTemplateArgs({ ...templateArgs, [arg.name]: e.target.value })}
+                      className="w-full border-2 border-gray-300 rounded-lg p-2 focus:border-green-500 focus:outline-none min-h-[100px]"
+                      placeholder={arg.description}
+                    />
+                  )}
+
+                  {extractedArgs && extractedArgs[arg.name] && (
+                    <div className="mt-2 text-xs text-green-700 bg-green-100 px-2 py-1 rounded">
+                      ✓ Auto-extracted: {String(extractedArgs[arg.name])}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={handleExecuteTemplate}
+              className="w-full mt-4 bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 font-bold text-lg transition-colors shadow-md"
+            >
+              Execute Template →
+            </button>
+          </div>
+        )}
+
+        {/* Save Template Modal */}
+        {showSaveTemplateModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Save as Template</h2>
+                <button
+                  onClick={() => setShowSaveTemplateModal(false)}
+                  className="text-gray-600 hover:text-gray-900 font-bold text-xl"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-900 mb-2">
+                    Template Name <span className="text-red-600">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={templateName}
+                    onChange={(e) => setTemplateName(e.target.value)}
+                    className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-purple-500 focus:outline-none"
+                    placeholder="e.g., Code Review - Python"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-900 mb-2">
+                    Description <span className="text-red-600">*</span>
+                  </label>
+                  <textarea
+                    value={templateDescription}
+                    onChange={(e) => setTemplateDescription(e.target.value)}
+                    className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-purple-500 focus:outline-none min-h-[100px]"
+                    placeholder="Describe what this template does and when to use it..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-900 mb-2">Category</label>
+                  <select
+                    value={templateCategory}
+                    onChange={(e) => setTemplateCategory(e.target.value)}
+                    className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-purple-500 focus:outline-none"
+                  >
+                    <option value="general">General</option>
+                    <option value="code_review">Code Review</option>
+                    <option value="code_generation">Code Generation</option>
+                    <option value="content_writing">Content Writing</option>
+                    <option value="data_analysis">Data Analysis</option>
+                    <option value="debugging">Debugging</option>
+                    <option value="api_design">API Design</option>
+                    <option value="documentation">Documentation</option>
+                    <option value="testing">Testing</option>
+                    <option value="architecture">Architecture</option>
+                  </select>
+                </div>
+
+                {error && (
+                  <div className="bg-red-50 border-2 border-red-300 rounded-lg p-3 text-red-800">
+                    {error}
+                  </div>
+                )}
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={handleSaveTemplate}
+                    className="flex-1 bg-purple-600 text-white px-4 py-3 rounded-lg hover:bg-purple-700 font-bold transition-colors"
+                  >
+                    Save Template
+                  </button>
+                  <button
+                    onClick={() => setShowSaveTemplateModal(false)}
+                    className="px-4 py-3 text-gray-600 hover:text-gray-900 font-semibold"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
