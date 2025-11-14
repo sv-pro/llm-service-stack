@@ -18,6 +18,7 @@ from .pg_database import postgres_conn
 from .template_store import template_store, Template
 import uuid
 import json
+import re
 
 app = FastAPI(
     title="LLM Gateway Service",
@@ -998,15 +999,102 @@ async def delete_template(template_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to delete template: {str(e)}")
 
 
+# ============================================================================
+# Template Matching Helpers
+# ============================================================================
+
+def extract_intent(prompt: str) -> str:
+    """
+    Extract natural language intent from prompt, stripping code blocks and data.
+
+    This prevents code/data from dominating the embedding and ensures we match
+    based on the user's intent rather than their specific data.
+
+    Examples:
+        Input:  "review my python code:\n```python\nprint('hi')\n```"
+        Output: "review my python code:"
+
+        Input:  "debug this error:\nTraceback (most recent call last)..."
+        Output: "debug this error:"
+    """
+    # Remove markdown code blocks (```...```)
+    cleaned = re.sub(r'```[\s\S]*?```', '', prompt)
+
+    # Remove inline code (backticks)
+    cleaned = re.sub(r'`[^`]+`', '', cleaned)
+
+    # Remove indented code blocks (4+ spaces or tabs at start of line)
+    lines = cleaned.split('\n')
+    intent_lines = []
+    for line in lines:
+        # Skip lines that look like code (heavy indentation)
+        if not re.match(r'^(\s{4,}|\t)', line):
+            intent_lines.append(line)
+
+    cleaned = '\n'.join(intent_lines)
+
+    # Collapse multiple whitespace and newlines
+    cleaned = ' '.join(cleaned.split())
+
+    return cleaned.strip()
+
+
+def boost_by_keywords(matches: List[Dict], original_prompt: str) -> List[Dict]:
+    """
+    Boost template similarity scores based on keyword matches in original prompt.
+
+    This helps surface templates that are semantically relevant AND mention
+    specific keywords the user cares about (e.g., "python", "security", "bug").
+
+    Args:
+        matches: List of template matches with similarity scores
+        original_prompt: The original user prompt (with code blocks)
+
+    Returns:
+        Re-ranked matches with keyword boost applied
+    """
+    prompt_lower = original_prompt.lower()
+
+    for match in matches:
+        # Count keyword hits
+        keywords = match.get('keywords', [])
+        keyword_hits = sum(1 for kw in keywords if kw.lower() in prompt_lower)
+
+        # Apply boost (5% per keyword, max 15%)
+        boost = min(keyword_hits * 0.05, 0.15)
+
+        # Add to similarity score
+        match['similarity'] += boost
+        match['keyword_boost'] = boost
+        match['keyword_hits'] = keyword_hits
+
+    # Re-sort by boosted similarity
+    return sorted(matches, key=lambda x: x['similarity'], reverse=True)
+
+
 @app.post("/v1/templates/match")
 async def match_templates(request: MatchTemplatesRequest):
     """
     Stage 3: Find best matching templates using semantic similarity.
+
+    Uses intent extraction to strip code blocks/data from the prompt before
+    generating embeddings, ensuring matches are based on user intent rather
+    than specific data content.
+
     Returns ranked list with similarity scores and statistics.
     """
     try:
-        # Generate embedding for user prompt
-        embedding = await generate_embedding(request.prompt)
+        # Extract intent (strip code blocks and data)
+        intent = extract_intent(request.prompt)
+
+        # Debug logging
+        if intent != request.prompt:
+            print(f"Intent extraction:")
+            print(f"  Original: {request.prompt[:100]}...")
+            print(f"  Intent:   {intent[:100]}...")
+
+        # Generate embedding from intent only (not the full prompt with code)
+        embedding = await generate_embedding(intent)
 
         # Semantic search
         matches = await template_store.find_similar(
@@ -1015,6 +1103,9 @@ async def match_templates(request: MatchTemplatesRequest):
             min_similarity=request.min_similarity,
             category=request.category
         )
+
+        # Boost matches by keyword presence in original prompt
+        matches = boost_by_keywords(matches, request.prompt)
 
         # Rank by combined score (similarity + usage stats)
         def rank_score(match):
@@ -1034,6 +1125,7 @@ async def match_templates(request: MatchTemplatesRequest):
         return {
             "matches": ranked_matches,
             "query": request.prompt,
+            "intent": intent,  # Include extracted intent for debugging
             "total": len(ranked_matches)
         }
 
