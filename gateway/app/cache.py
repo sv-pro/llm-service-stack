@@ -9,6 +9,23 @@ import redis.asyncio as redis
 from .config import settings
 
 
+async def generate_embedding(text: str) -> Optional[List[float]]:
+    """
+    Generate embedding for semantic search using OpenAI.
+    Standalone function that can be used by cache, template store, etc.
+    """
+    try:
+        import litellm
+        response = await litellm.aembedding(
+            model="text-embedding-3-small",  # Use the newer, cheaper model
+            input=[text]
+        )
+        return response['data'][0]['embedding']
+    except Exception as e:
+        print(f"Embedding generation error: {e}")
+        return None
+
+
 class CacheManager:
     """Redis-based cache manager with verbatim and semantic caching."""
 
@@ -41,17 +58,8 @@ class CacheManager:
         return f"llm:cache:{hashlib.sha256(request_str.encode()).hexdigest()}"
 
     async def _generate_embedding(self, text: str) -> Optional[List[float]]:
-        """Generate embedding for semantic search using OpenAI."""
-        try:
-            import litellm
-            response = await litellm.aembedding(
-                model=self.embedding_model,
-                input=[text]
-            )
-            return response['data'][0]['embedding']
-        except Exception as e:
-            print(f"Embedding generation error: {e}")
-            return None
+        """Generate embedding for semantic search using OpenAI (calls shared function)."""
+        return await generate_embedding(text)
 
     def _cosine_similarity(self, vec1: List[float], vec2: List[float]) -> float:
         """Calculate cosine similarity between two vectors."""
