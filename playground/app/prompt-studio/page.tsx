@@ -350,7 +350,18 @@ export default function PromptStudioPage() {
   };
 
   const handleSelectTemplate = async (template: any) => {
-    setSelectedTemplate(template);
+    // Parse JSON strings to arrays before storing
+    const parsedTemplate = {
+      ...template,
+      required_args: typeof template.required_args === 'string'
+        ? JSON.parse(template.required_args)
+        : template.required_args,
+      optional_args: typeof template.optional_args === 'string'
+        ? JSON.parse(template.optional_args)
+        : template.optional_args,
+    };
+
+    setSelectedTemplate(parsedTemplate);
     setShowArgsForm(true);
 
     // Try to extract arguments automatically
