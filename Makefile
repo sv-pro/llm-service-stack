@@ -141,6 +141,28 @@ mongo-restore: ## Restore MongoDB from latest backup (requires BACKUP_FILE env v
 	@docker-compose exec -T mongo mongorestore --db=llm_service --archive < $(BACKUP_FILE)
 	@echo "$(GREEN)==> Restore complete!$(NC)"
 
+migrate: ## Run database migrations (gateway SQLite)
+	@echo "$(BLUE)==> Running gateway database migrations...$(NC)"
+	@cd gateway && python migrate.py upgrade
+	@echo "$(GREEN)==> Migrations complete!$(NC)"
+
+migrate-status: ## Show current migration status
+	@echo "$(BLUE)==> Current migration status:$(NC)"
+	@cd gateway && python migrate.py current
+
+migrate-history: ## Show migration history
+	@echo "$(BLUE)==> Migration history:$(NC)"
+	@cd gateway && python migrate.py history
+
+migrate-create: ## Create a new migration (usage: make migrate-create MSG="description")
+	@if [ -z "$(MSG)" ]; then \
+		echo "$(RED)Error: Please specify MSG=\"your migration description\"$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)==> Creating new migration: $(MSG)$(NC)"
+	@cd gateway && python migrate.py revision "$(MSG)"
+	@echo "$(GREEN)==> Migration file created!$(NC)"
+
 start-redis: ## Start Redis only
 	@echo "$(GREEN)==> Starting Redis...$(NC)"
 	@docker-compose up -d redis

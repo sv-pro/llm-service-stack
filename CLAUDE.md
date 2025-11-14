@@ -404,6 +404,51 @@ The app-server uses MongoDB with Mongoose ODM. Schema is fully implemented in `l
 
 All CRUD operations are implemented in the API routes with proper validation and error handling.
 
+### Database Migrations (Gateway SQLite)
+
+The gateway uses SQLite/DuckDB for tracking usage logs and storing enhanced prompts. Database schema changes are managed with **Alembic** migrations.
+
+**Migration Commands**:
+```bash
+# Run all pending migrations (automatic on gateway startup)
+make migrate
+
+# Check current migration version
+make migrate-status
+
+# View migration history
+make migrate-history
+
+# Create a new migration
+make migrate-create MSG="add new columns"
+
+# Manual migration (from gateway/ directory)
+cd gateway
+python migrate.py upgrade    # Upgrade to latest
+python migrate.py downgrade  # Downgrade one version
+python migrate.py current    # Show current version
+python migrate.py history    # Show history
+```
+
+**How It Works**:
+1. Migrations run automatically on gateway startup via `init_db()`
+2. Migration files are stored in `gateway/alembic/versions/`
+3. Schema changes are tracked in the `alembic_version` table
+4. Safe to run multiple times - migrations are idempotent
+
+**Creating a New Migration**:
+1. Modify models in `gateway/app/models.py`
+2. Run: `make migrate-create MSG="description of changes"`
+3. Review generated migration in `gateway/alembic/versions/`
+4. Test migration: `cd gateway && python migrate.py upgrade`
+5. Restart gateway - migration runs automatically
+
+**Troubleshooting**:
+- If you see "table X has no column Y" errors, migrations haven't run
+- Delete `gateway/usage_logs.db` to start fresh (development only)
+- Check migration status: `make migrate-status`
+- Migrations are automatically applied on Docker container startup
+
 ### Adding Authentication
 Current implementation is scaffolded without authentication. To add:
 1. Install NextAuth.js or similar for app-server
