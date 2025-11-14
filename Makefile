@@ -181,6 +181,23 @@ seed-templates: ## Seed template library with starter templates
 	@docker-compose exec gateway python seed_templates.py
 	@echo "$(GREEN)==> Template library seeded!$(NC)"
 
+list-templates: ## List all templates in PostgreSQL
+	@echo "$(BLUE)==> Templates in library:$(NC)"
+	@docker-compose exec postgres psql -U llm_user -d llm_templates -c "SELECT id, name, category, usage_count, ROUND(CAST(success_rate AS numeric), 2) as success_rate FROM templates ORDER BY usage_count DESC;"
+
+template-stats: ## Show template usage statistics
+	@echo "$(BLUE)==> Template statistics:$(NC)"
+	@docker-compose exec postgres psql -U llm_user -d llm_templates -c "SELECT category, COUNT(*) as count, ROUND(AVG(usage_count)) as avg_usage, ROUND(CAST(AVG(success_rate) AS numeric), 2) as avg_success FROM templates GROUP BY category ORDER BY count DESC;"
+
+start-adminer: ## Start Adminer (Database UI)
+	@echo "$(GREEN)==> Starting Adminer...$(NC)"
+	@docker-compose up -d adminer
+	@echo "$(GREEN)==> Adminer available at http://localhost:8080$(NC)"
+
+stop-adminer: ## Stop Adminer
+	@echo "$(YELLOW)==> Stopping Adminer...$(NC)"
+	@docker-compose stop adminer
+
 start-redis: ## Start Redis only
 	@echo "$(GREEN)==> Starting Redis...$(NC)"
 	@docker-compose up -d redis
@@ -316,12 +333,14 @@ quickstart: ## Quick start: build and run entire stack
 	@echo "  $(YELLOW)App Server: $(NC)http://localhost:3000"
 	@echo "  $(YELLOW)Playground: $(NC)http://localhost:3001"
 	@echo "  $(YELLOW)Web Chat:   $(NC)http://localhost:3002"
+	@echo "  $(YELLOW)Adminer:    $(NC)http://localhost:8080"
 	@echo ""
-	@echo "Useful commands:"
-	@echo "  $(YELLOW)make logs$(NC)          - View all logs"
-	@echo "  $(YELLOW)make status$(NC)        - Check service status"
-	@echo "  $(YELLOW)make stop$(NC)          - Stop all services"
-	@echo "  $(YELLOW)make help$(NC)          - Show all commands"
+	@echo "Next steps:"
+	@echo "  $(YELLOW)make seed-templates$(NC) - Seed template library"
+	@echo "  $(YELLOW)make logs$(NC)           - View all logs"
+	@echo "  $(YELLOW)make status$(NC)         - Check service status"
+	@echo "  $(YELLOW)make urls$(NC)           - Show all URLs"
+	@echo "  $(YELLOW)make help$(NC)           - Show all commands"
 
 ##@ Health Checks
 
@@ -343,10 +362,12 @@ urls: ## Show URLs for all services
 	@echo "  App Server: http://localhost:3000"
 	@echo "  Playground: http://localhost:3001"
 	@echo "  Web Chat:   http://localhost:3002"
+	@echo "  Adminer:    http://localhost:8080 (Database UI)"
 	@echo ""
 	@echo "$(BLUE)API Endpoints:$(NC)"
-	@echo "  Gateway Health:     http://localhost:8000/"
-	@echo "  Gateway Models:     http://localhost:8000/v1/models"
-	@echo "  App Server Users:   http://localhost:3000/api/users"
+	@echo "  Gateway Health:      http://localhost:8000/"
+	@echo "  Gateway Models:      http://localhost:8000/v1/models"
+	@echo "  Gateway Templates:   http://localhost:8000/v1/templates"
+	@echo "  App Server Users:    http://localhost:3000/api/users"
 	@echo "  App Server Sessions: http://localhost:3000/api/sessions"
-	@echo "  App Server Keys:    http://localhost:3000/api/keys"
+	@echo "  App Server Keys:     http://localhost:3000/api/keys"
