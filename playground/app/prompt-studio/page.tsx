@@ -588,7 +588,7 @@ export default function PromptStudioPage() {
                           <div className="space-y-2">
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-semibold text-blue-800">Iterations:</span>
-                              <span className="text-xs bg-blue-100 px-2 py-1 rounded border border-blue-300 font-semibold">
+                              <span className="text-xs bg-blue-100 text-blue-900 px-2 py-1 rounded border border-blue-300 font-semibold">
                                 {enhancedPrompt.experimental_recursive.iterations}
                               </span>
                               {enhancedPrompt.experimental_recursive.converged ? (
@@ -605,7 +605,7 @@ export default function PromptStudioPage() {
                             {enhancedPrompt.experimental_recursive.final_similarity > 0 && (
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-semibold text-blue-800">Final Similarity:</span>
-                                <span className="text-xs bg-blue-100 px-2 py-1 rounded border border-blue-300 font-semibold">
+                                <span className="text-xs bg-blue-100 text-blue-900 px-2 py-1 rounded border border-blue-300 font-semibold">
                                   {(enhancedPrompt.experimental_recursive.final_similarity * 100).toFixed(1)}%
                                 </span>
                               </div>
