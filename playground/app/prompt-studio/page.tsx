@@ -1166,7 +1166,7 @@ export default function PromptStudioPage() {
                     <select
                       value={templateArgs[arg.name] || ''}
                       onChange={(e) => setTemplateArgs({ ...templateArgs, [arg.name]: e.target.value })}
-                      className="w-full border-2 border-gray-300 rounded-lg p-2 focus:border-green-500 focus:outline-none"
+                      className="w-full bg-white text-gray-900 border-2 border-gray-300 rounded-lg p-2 focus:border-green-500 focus:outline-none"
                     >
                       <option value="">Select...</option>
                       {arg.enum_values.map((val: string) => (
@@ -1178,14 +1178,14 @@ export default function PromptStudioPage() {
                       type="number"
                       value={templateArgs[arg.name] || ''}
                       onChange={(e) => setTemplateArgs({ ...templateArgs, [arg.name]: e.target.value })}
-                      className="w-full border-2 border-gray-300 rounded-lg p-2 focus:border-green-500 focus:outline-none"
+                      className="w-full bg-white text-gray-900 border-2 border-gray-300 rounded-lg p-2 focus:border-green-500 focus:outline-none"
                       placeholder={arg.description}
                     />
                   ) : (
                     <textarea
                       value={templateArgs[arg.name] || ''}
                       onChange={(e) => setTemplateArgs({ ...templateArgs, [arg.name]: e.target.value })}
-                      className="w-full border-2 border-gray-300 rounded-lg p-2 focus:border-green-500 focus:outline-none min-h-[100px]"
+                      className="w-full bg-white text-gray-900 border-2 border-gray-300 rounded-lg p-2 focus:border-green-500 focus:outline-none min-h-[100px]"
                       placeholder={arg.description}
                     />
                   )}
@@ -1231,7 +1231,7 @@ export default function PromptStudioPage() {
                     type="text"
                     value={templateName}
                     onChange={(e) => setTemplateName(e.target.value)}
-                    className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-purple-500 focus:outline-none"
+                    className="w-full bg-white text-gray-900 border-2 border-gray-300 rounded-lg p-3 focus:border-purple-500 focus:outline-none"
                     placeholder="e.g., Code Review - Python"
                   />
                 </div>
@@ -1243,7 +1243,7 @@ export default function PromptStudioPage() {
                   <textarea
                     value={templateDescription}
                     onChange={(e) => setTemplateDescription(e.target.value)}
-                    className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-purple-500 focus:outline-none min-h-[100px]"
+                    className="w-full bg-white text-gray-900 border-2 border-gray-300 rounded-lg p-3 focus:border-purple-500 focus:outline-none min-h-[100px]"
                     placeholder="Describe what this template does and when to use it..."
                   />
                 </div>
@@ -1253,7 +1253,7 @@ export default function PromptStudioPage() {
                   <select
                     value={templateCategory}
                     onChange={(e) => setTemplateCategory(e.target.value)}
-                    className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-purple-500 focus:outline-none"
+                    className="w-full bg-white text-gray-900 border-2 border-gray-300 rounded-lg p-3 focus:border-purple-500 focus:outline-none"
                   >
                     <option value="general">General</option>
                     <option value="code_review">Code Review</option>
