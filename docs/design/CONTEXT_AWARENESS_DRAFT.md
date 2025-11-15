@@ -1,0 +1,6 @@
+A semantics/intent oriented system like the `gateway` of the LLM Service Stack should be context aware. This means that it should be able to take into account, in addition to the immediate user input, other relevant information, like the previous messages in the conversation, previous conversations with the same user, user preferences, and other external data sources.
+
+Proposition: To achieve context awareness, the system can implement the following strategies:
+1. **Conversation History**: Maintain a "semantic signature" of the conversation history. This can be done by storing embeddings of previous messages and using them to retrieve relevant past interactions when processing new inputs.
+2. **User Profiles**: Create and maintain user profiles that capture user preferences, frequently discussed topics, and other relevant data. This profile can be updated dynamically as the user interacts with the system
+3. Active Back-to-User Clarifications: When the system detects ambiguity or insufficient context, it can proactively ask the user for clarifications to ensure accurate understanding of their intent.
